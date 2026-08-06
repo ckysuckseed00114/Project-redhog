@@ -135,7 +135,7 @@ func leave_channel(channel_name: String) -> void:
 		set_primary_channel(RealtimeChannel.GLOBAL)
 
 
-# เพิ่มส่วนนี้เข้าไปในคลาส เพื่อคอยดึงข้อมูลจาก JS queue ทุกเฟรม
+# เพิ่มส่วนนี้เข้าไปในคลาส เพื่อคอย poll WebSocket ทุกเฟรม
 func _process(delta: float) -> void:
 	# --- โค้ด WebSocket เดิมปล่อยไว้ตามเดิม ---
 	if _ws != null:
@@ -160,19 +160,6 @@ func _process(delta: float) -> void:
 			_reset_realtime_state()
 			if was_connected and current_user_id != "":
 				call_deferred("connect_realtime")
-
-	# 🌟 เช็กข้อมูล Web Fetch จากคิว JavaScript ทุกเฟรม
-	if OS.has_feature("web") and not _web_fetch_pending.is_empty():
-		var window := JavaScriptBridge.get_interface("window")
-		var queue = JavaScriptBridge.eval("window._godot_fetch_queue;")
-		if queue is Array and not queue.is_empty():
-			# ดึงข้อมูลก้อนแรกออกมาประมวลผล
-			var item = JavaScriptBridge.eval("window._godot_fetch_queue.shift();")
-			if item is Dictionary:
-				var fetch_id := int(item.get("id", 0))
-				var status := int(item.get("status", 0))
-				var body_text := str(item.get("body", ""))
-				_finish_web_fetch_by_id(fetch_id, status, body_text)
 
 
 func _reset_realtime_state() -> void:
@@ -516,7 +503,7 @@ func fetch_data(table_name: String, query_params: String = "", callback: Callabl
 	var auth_token := current_access_token if current_access_token != "" else SupabaseConfig.anon_key
 
 	if OS.has_feature("web"):
-		_fetch_data_web(url, auth_token, callback)
+		_fetch_data_browser(url, auth_token, callback)
 		return
 
 	_fetch_data_http(url, auth_token, callback)
@@ -527,16 +514,19 @@ func _fetch_data_http(url: String, auth_token: String, callback: Callable) -> vo
 		"apikey: " + SupabaseConfig.anon_key,
 		"Authorization: Bearer " + auth_token,
 		"Accept: application/json",
+		"Accept-Encoding: identity",
 	])
 
 	var http := HTTPRequest.new()
+	http.timeout = 20.0
 	add_child(http)
 	_connect_http_callback(http, func(result, response_code, _headers_res, body):
+		var body_text: String = body.get_string_from_utf8() if not body.is_empty() else ""
 		var response_data: Variant = _parse_json_body(body)
 		var rows := normalize_rows(response_data)
 
 		if result != HTTPRequest.RESULT_SUCCESS:
-			print("❌ ดึงข้อมูลล้มเหลว (HTTP result %d)" % result)
+			print("❌ ดึงข้อมูลล้มเหลว (HTTP result %d) url=", url)
 			if callback.is_valid():
 				callback.call(false, rows)
 			return
@@ -546,47 +536,52 @@ func _fetch_data_http(url: String, auth_token: String, callback: Callable) -> vo
 			if callback.is_valid():
 				callback.call(true, rows)
 		else:
-			print("❌ ดึงข้อมูลล้มเหลว (Code %d): " % response_code, response_data)
+			print("❌ ดึงข้อมูลล้มเหลว (Code %d): " % response_code, body_text.left(200))
 			if callback.is_valid():
 				callback.call(false, rows)
 	)
 	http.request(url, headers, HTTPClient.METHOD_GET)
 
 
-var _js_bridge_initialized := false
-
-func _init_web_bridge() -> void:
-	if _js_bridge_initialized:
-		return
-	_js_bridge_initialized = true
-	
-	# 🌟 สร้าง Callback รับแพ็กเกจ JSON String ก้อนเดียวจาก JavaScript
-	var cb := JavaScriptBridge.create_callback(func(args: Array) -> void:
-		if args.is_empty():
-			return
-		var json := JSON.new()
-		if json.parse(str(args[0])) != OK:
-			return
-		var data: Variant = json.get_data()
-		if not data is Dictionary:
-			return
-			
-		var fetch_id := int(data.get("id", 0))
-		var status := int(data.get("status", 0))
-		var body_text := str(data.get("body", ""))
-		_finish_web_fetch_by_id(fetch_id, status, body_text)
-	)
-	var window := JavaScriptBridge.get_interface("window")
-	window._godot_fetch_dispatcher = cb
-
-
-func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> void:
-	_init_web_bridge()
+func _fetch_data_browser(url: String, auth_token: String, callback: Callable) -> void:
 	_web_fetch_seq += 1
 	var fetch_id := _web_fetch_seq
 	_web_fetch_pending[fetch_id] = callback
 
-	# 🌟 ห่อข้อมูลเป็น JSON string แล้วยิงเข้า dispatcher ตรงๆ
+	var js_cb := JavaScriptBridge.create_callback(func(args: Array) -> void:
+		if not _web_fetch_pending.has(fetch_id):
+			return
+		var pending: Callable = _web_fetch_pending[fetch_id]
+		_web_fetch_pending.erase(fetch_id)
+		if not pending.is_valid() or args.is_empty():
+			pending.call(false, [])
+			return
+			
+		var packet_json := JSON.new()
+		if packet_json.parse(str(args[0])) != OK:
+			pending.call(false, [])
+			return
+			
+		var raw_packet: Variant = packet_json.get_data()
+		if not raw_packet is Dictionary:
+			pending.call(false, [])
+			return
+			
+		# 🌟 แปลงชนิดเป็น Dictionary ชัดเจนเพื่อให้คอมไพเลอร์รู้ประเภทข้อมูลภายใน
+		var packet: Dictionary = raw_packet
+		
+		var status: int = int(packet.get("status", 0))
+		var body_text: String = str(packet.get("body", ""))
+		
+		var body_json := JSON.new()
+		body_json.parse(body_text)
+		var rows: Array = normalize_rows(body_json.get_data())
+		var ok: bool = status >= 200 and status < 300
+		
+		print("[BrowserFetch] status=", status, " rows=", rows.size())
+		pending.call(ok, rows)
+	)
+
 	var js := """
 	(function() {
 		fetch(%s, {
@@ -598,79 +593,32 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 			}
 		}).then(function(r) {
 			return r.text().then(function(t) {
-				var packet = JSON.stringify({ id: %d, status: r.status, body: t });
-				if (window._godot_fetch_dispatcher) {
-					window._godot_fetch_dispatcher(packet);
-				}
+				var payload = JSON.stringify({ status: r.status, body: t });
+				%s([payload]);
 			});
 		}).catch(function(e) {
-			var packet = JSON.stringify({ id: %d, status: 0, body: String(e) });
-			if (window._godot_fetch_dispatcher) {
-				window._godot_fetch_dispatcher(packet);
-			}
+			%s([JSON.stringify({ status: 0, body: String(e) })]);
 		});
 	})();
 	""" % [
 		JSON.stringify(url),
 		JSON.stringify(SupabaseConfig.anon_key),
 		JSON.stringify(auth_token),
-		fetch_id,
-		fetch_id,
+		js_cb,
+		js_cb,
 	]
+	print("[BrowserFetch] start url=", url)
 	JavaScriptBridge.eval(js)
 
-	var timer := get_tree().create_timer(10.0)
-	timer.timeout.connect(func() -> void:
+	get_tree().create_timer(8.0).timeout.connect(func() -> void:
 		if not _web_fetch_pending.has(fetch_id):
 			return
-		print("[WebFetch] JS timeout")
+		print("[BrowserFetch] timeout — fallback HTTPRequest")
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
 		if pending.is_valid():
-			pending.call(false, [])
+			_fetch_data_http(url, auth_token, pending)
 	, CONNECT_ONE_SHOT)
-
-
-func _finish_web_fetch_by_id(fetch_id: int, status: int, body_text: String) -> void:
-	if not _web_fetch_pending.has(fetch_id):
-		return
-	var callback: Callable = _web_fetch_pending[fetch_id]
-	_web_fetch_pending.erase(fetch_id)
-	if not callback.is_valid():
-		return
-	var body_json := JSON.new()
-	body_json.parse(body_text)
-	var rows := normalize_rows(body_json.get_data())
-	var ok := status >= 200 and status < 300
-	print("[WebFetch] status=", status, " rows=", rows.size())
-	callback.call(ok, rows)
-
-func _finish_web_fetch(fetch_id: int, args: Array) -> void:
-	if not _web_fetch_pending.has(fetch_id):
-		return
-	var callback: Callable = _web_fetch_pending[fetch_id]
-	_web_fetch_pending.erase(fetch_id)
-	if not callback.is_valid():
-		return
-	if args.is_empty():
-		callback.call(false, [])
-		return
-	var envelope_json := JSON.new()
-	if envelope_json.parse(str(args[0])) != OK:
-		callback.call(false, [])
-		return
-	var envelope: Variant = envelope_json.get_data()
-	if not envelope is Dictionary:
-		callback.call(false, [])
-		return
-	var status := int(envelope.get("status", 0))
-	var body_text := str(envelope.get("body", ""))
-	var body_json := JSON.new()
-	body_json.parse(body_text)
-	var rows := normalize_rows(body_json.get_data())
-	var ok := status >= 200 and status < 300
-	print("[WebFetch] status=", status, " rows=", rows.size())
-	callback.call(ok, rows)
 
 func update_data(table: String, query: String, data: Dictionary, callback: Callable = Callable()) -> void:
 	SupabaseConfig.ensure_loaded()

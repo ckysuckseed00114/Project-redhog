@@ -120,7 +120,7 @@ func _load_characters() -> void:
 	var user_id := SupabaseClient.current_user_id
 	_fetch_generation += 1
 	var fetch_gen := _fetch_generation
-	var query := "user_id=eq.\"%s\"&order=slot_index.asc" % user_id
+	var query := "user_id=eq.%s&order=slot_index.asc" % user_id.uri_encode()
 
 	print("🚀 ดึงตัวละคร | User ID: ", user_id, " | token: ", SupabaseClient.current_access_token.length(), " chars")
 
