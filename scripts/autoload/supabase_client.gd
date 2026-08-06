@@ -593,30 +593,31 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 
 	var js := """
 	(function() {
+		console.log("[JS Fetch] กำลังยิงไปที่:", %s);
 		fetch(%s, {
 			method: 'GET',
 			headers: {
 				'apikey': %s,
-				'Authorization': 'Bearer ' + %s,
+				'Authorization': %s, 
 				'Accept': 'application/json'
 			}
 		}).then(function(r) {
+			console.log("[JS Fetch] ตอบกลับ Status:", r.status);
 			return r.text().then(function(t) {
+				console.log("[JS Fetch] Body ยาว:", t.length);
 				var payload = JSON.stringify({ status: r.status, body: t });
-				if (window.%s) {
-					window.%s(payload);
-				}
+				if (window.%s) { window.%s(payload); }
 			});
 		}).catch(function(e) {
-			if (window.%s) {
-				window.%s(JSON.stringify({ status: 0, body: String(e) }));
-			}
+			console.error("[JS Fetch] Error:", e);
+			if (window.%s) { window.%s(JSON.stringify({ status: 0, body: String(e) })); }
 		});
 	})();
 	""" % [
 		JSON.stringify(url),
+		JSON.stringify(url),
 		JSON.stringify(SupabaseConfig.anon_key),
-		JSON.stringify(auth_token),
+		JSON.stringify("Bearer " + auth_token), # 🌟 รวม Bearer และ Token แล้วค่อยแปลงทีเดียว!
 		cb_prop_name,
 		cb_prop_name,
 		cb_prop_name,
