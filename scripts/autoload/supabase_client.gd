@@ -548,6 +548,11 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 		_finish_web_fetch(fetch_id, args)
 	)
 
+	# 🌟 เอา callback ไปแปะไว้ที่ window โดยตรง ป้องกันปัญหากลุ่มตัวแปรสโคปปิดกั้น
+	var window = JavaScriptBridge.get_interface("window")
+	var cb_name = "_godot_fetch_cb_" + str(fetch_id)
+	window[cb_name] = js_cb
+
 	var js := """
 	(function() {
 		fetch(%s, {
@@ -562,17 +567,21 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 				return JSON.stringify({ status: r.status, body: t });
 			});
 		}).then(function(payloadStr) {
-			%s([payloadStr]);
+			window['%s']([payloadStr]);
+			delete window['%s'];
 		}).catch(function(e) {
-			%s([JSON.stringify({ status: 0, body: String(e) })]);
+			window['%s']([JSON.stringify({ status: 0, body: String(e) })]);
+			delete window['%s'];
 		});
 	})();
 	""" % [
 		JSON.stringify(url),
 		JSON.stringify(SupabaseConfig.anon_key),
 		JSON.stringify(auth_token),
-		js_cb,
-		js_cb,
+		cb_name,
+		cb_name,
+		cb_name,
+		cb_name,
 	]
 	JavaScriptBridge.eval(js)
 
@@ -581,12 +590,16 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 		if not _web_fetch_pending.has(fetch_id):
 			return
 		print("[WebFetch] JS timeout — fallback HTTPRequest")
+		
+		# 🛠️ เปลี่ยนมาใช้ if-else แบบปกติเพื่อแก้ปัญหา Standalone Ternary
+		if window.has(cb_name):
+			window.delete(cb_name)
+			
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
 		if pending.is_valid():
 			_fetch_data_http(url, auth_token, pending)
 	, CONNECT_ONE_SHOT)
-
 
 func _finish_web_fetch(fetch_id: int, args: Array) -> void:
 	if not _web_fetch_pending.has(fetch_id):
