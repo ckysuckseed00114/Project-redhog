@@ -20,6 +20,8 @@ var _pending_broadcasts: Array[Dictionary] = []
 var _joined_channels: Dictionary = {} # channel_name -> join_ref
 var _pending_join_channels: Array[String] = []
 var _primary_channel: String = RealtimeChannel.GLOBAL
+var _web_fetch_seq: int = 0
+var _web_fetch_pending: Dictionary = {}
 
 
 func _ready() -> void:
@@ -491,26 +493,29 @@ func insert_data(table_name: String, data: Dictionary, callback: Callable = Call
 
 func fetch_data(table_name: String, query_params: String = "", callback: Callable = Callable()) -> void:
 	SupabaseConfig.ensure_loaded()
-	
-	# 🛠️ โค้ดดักช่วยลบเครื่องหมายคำพูดที่เกินมาใน query_params อัตโนมัติ ป้องกัน Error 22P02
+
 	var fixed_params := query_params
 	if fixed_params != "":
 		fixed_params = fixed_params.replace('eq."', 'eq.').replace('"', '')
-	
-	var url = SupabaseConfig.url + table_name + ("?" + fixed_params if fixed_params != "" else "")
-	var auth_token = current_access_token if current_access_token != "" else SupabaseConfig.anon_key
+
+	var url := SupabaseConfig.url + table_name + ("?" + fixed_params if fixed_params != "" else "")
+	var auth_token := current_access_token if current_access_token != "" else SupabaseConfig.anon_key
 
 	if OS.has_feature("web"):
 		_fetch_data_web(url, auth_token, callback)
 		return
 
-	var headers = PackedStringArray([
+	_fetch_data_http(url, auth_token, callback)
+
+
+func _fetch_data_http(url: String, auth_token: String, callback: Callable) -> void:
+	var headers := PackedStringArray([
 		"apikey: " + SupabaseConfig.anon_key,
 		"Authorization: Bearer " + auth_token,
 		"Accept: application/json",
 	])
 
-	var http = HTTPRequest.new()
+	var http := HTTPRequest.new()
 	add_child(http)
 	_connect_http_callback(http, func(result, response_code, _headers_res, body):
 		var response_data: Variant = _parse_json_body(body)
@@ -523,6 +528,7 @@ func fetch_data(table_name: String, query_params: String = "", callback: Callabl
 			return
 
 		if response_code >= 200 and response_code < 300:
+			print("✅ fetch OK status=", response_code, " rows=", rows.size())
 			if callback.is_valid():
 				callback.call(true, rows)
 		else:
@@ -532,35 +538,15 @@ func fetch_data(table_name: String, query_params: String = "", callback: Callabl
 	)
 	http.request(url, headers, HTTPClient.METHOD_GET)
 
-func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> void:
-	var anon_key := SupabaseConfig.anon_key
-	var js_cb := JavaScriptBridge.create_callback(func(args: Array) -> void:
-		if not callback.is_valid():
-			return
-		if args.is_empty():
-			callback.call(false, [])
-			return
-		var envelope_json := JSON.new()
-		if envelope_json.parse(str(args[0])) != OK:
-			callback.call(false, [])
-			return
-		var envelope: Variant = envelope_json.get_data()
-		if not envelope is Dictionary:
-			callback.call(false, [])
-			return
-		var status := int(envelope.get("status", 0))
-		var body_text := str(envelope.get("body", ""))
-		var body_json := JSON.new()
-		body_json.parse(body_text)
-		var rows := normalize_rows(body_json.get_data())
-		var ok := status >= 200 and status < 300
-		if OS.is_debug_build():
-			print("[WebFetch] ", url, " status=", status, " rows=", rows.size(), " body=", body_text.left(120))
-		callback.call(ok, rows)
-	)
 
-	var window = JavaScriptBridge.get_interface("window")
-	window._godot_fetch_cb = js_cb
+func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> void:
+	_web_fetch_seq += 1
+	var fetch_id := _web_fetch_seq
+	_web_fetch_pending[fetch_id] = callback
+
+	var js_cb := JavaScriptBridge.create_callback(func(args: Array) -> void:
+		_finish_web_fetch(fetch_id, args)
+	)
 
 	var js := """
 	(function() {
@@ -573,20 +559,61 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 			}
 		}).then(function(r) {
 			return r.text().then(function(t) {
-				return { status: r.status, body: t };
+				return JSON.stringify({ status: r.status, body: t });
 			});
-		}).then(function(payload) {
-			window._godot_fetch_cb(JSON.stringify(payload));
+		}).then(function(payloadStr) {
+			%s([payloadStr]);
 		}).catch(function(e) {
-			window._godot_fetch_cb(JSON.stringify({ status: 0, body: String(e) }));
+			%s([JSON.stringify({ status: 0, body: String(e) })]);
 		});
 	})();
 	""" % [
 		JSON.stringify(url),
-		JSON.stringify(anon_key),
+		JSON.stringify(SupabaseConfig.anon_key),
 		JSON.stringify(auth_token),
+		js_cb,
+		js_cb,
 	]
 	JavaScriptBridge.eval(js)
+
+	var timer := get_tree().create_timer(6.0)
+	timer.timeout.connect(func() -> void:
+		if not _web_fetch_pending.has(fetch_id):
+			return
+		print("[WebFetch] JS timeout — fallback HTTPRequest")
+		var pending: Callable = _web_fetch_pending[fetch_id]
+		_web_fetch_pending.erase(fetch_id)
+		if pending.is_valid():
+			_fetch_data_http(url, auth_token, pending)
+	, CONNECT_ONE_SHOT)
+
+
+func _finish_web_fetch(fetch_id: int, args: Array) -> void:
+	if not _web_fetch_pending.has(fetch_id):
+		return
+	var callback: Callable = _web_fetch_pending[fetch_id]
+	_web_fetch_pending.erase(fetch_id)
+	if not callback.is_valid():
+		return
+	if args.is_empty():
+		callback.call(false, [])
+		return
+	var envelope_json := JSON.new()
+	if envelope_json.parse(str(args[0])) != OK:
+		callback.call(false, [])
+		return
+	var envelope: Variant = envelope_json.get_data()
+	if not envelope is Dictionary:
+		callback.call(false, [])
+		return
+	var status := int(envelope.get("status", 0))
+	var body_text := str(envelope.get("body", ""))
+	var body_json := JSON.new()
+	body_json.parse(body_text)
+	var rows := normalize_rows(body_json.get_data())
+	var ok := status >= 200 and status < 300
+	print("[WebFetch] status=", status, " rows=", rows.size())
+	callback.call(ok, rows)
 
 func update_data(table: String, query: String, data: Dictionary, callback: Callable = Callable()) -> void:
 	SupabaseConfig.ensure_loaded()

@@ -22,7 +22,18 @@ func _ready() -> void:
 	center_container = $CenterContainer
 	_init_ui_layout()
 	_set_status("กำลังโหลดตัวละคร...")
+	get_tree().create_timer(12.0).timeout.connect(_on_load_timeout, CONNECT_ONE_SHOT)
 	call_deferred("_load_characters")
+
+
+func _on_load_timeout() -> void:
+	if is_loaded:
+		return
+	print("⚠️ โหลดตัวละครหมดเวลา — แสดงช่องว่าง")
+	is_loaded = true
+	characters = GlobalData.merge_character_rows([], SupabaseClient.current_user_id)
+	_set_status("โหลดตัวละครหมดเวลา — กดกลับแล้วเข้าใหม่", Color8(0xe7, 0x4c, 0x3c))
+	call_deferred("_build_slots")
 
 
 func _init_ui_layout() -> void:
