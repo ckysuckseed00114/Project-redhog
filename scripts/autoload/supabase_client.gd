@@ -559,6 +559,9 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 		callback.call(ok, rows)
 	)
 
+	var window = JavaScriptBridge.get_interface("window")
+	window._godot_fetch_cb = js_cb
+
 	var js := """
 	(function() {
 		fetch(%s, {
@@ -573,20 +576,17 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 				return { status: r.status, body: t };
 			});
 		}).then(function(payload) {
-			%s([JSON.stringify(payload)]);
+			window._godot_fetch_cb(JSON.stringify(payload));
 		}).catch(function(e) {
-			%s([JSON.stringify({ status: 0, body: String(e) })]);
+			window._godot_fetch_cb(JSON.stringify({ status: 0, body: String(e) }));
 		});
 	})();
 	""" % [
 		JSON.stringify(url),
 		JSON.stringify(anon_key),
 		JSON.stringify(auth_token),
-		js_cb,
-		js_cb,
 	]
 	JavaScriptBridge.eval(js)
-
 
 func update_data(table: String, query: String, data: Dictionary, callback: Callable = Callable()) -> void:
 	SupabaseConfig.ensure_loaded()
