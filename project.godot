@@ -43,6 +43,10 @@ window/stretch/scale_mode="integer"
 
 enabled=PackedStringArray()
 
+[gui]
+
+theme/custom="uid://d0lfmyapi1qeu"
+
 [input]
 
 move_up={
