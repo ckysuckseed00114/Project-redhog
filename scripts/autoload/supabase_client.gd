@@ -22,6 +22,7 @@ var _pending_join_channels: Array[String] = []
 var _primary_channel: String = RealtimeChannel.GLOBAL
 var _web_fetch_seq: int = 0
 var _web_fetch_pending: Dictionary = {}
+var _web_fetch_callbacks: Dictionary = {}
 
 
 func _ready() -> void:
@@ -549,12 +550,13 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 	_web_fetch_pending[fetch_id] = callback
 
 	var js_cb := JavaScriptBridge.create_callback(func(args: Array) -> void:
+		_web_fetch_callbacks.erase(fetch_id) # 🌟 เคลียร์ Callback ทิ้งเมื่อใช้งานเสร็จ
+		
 		if not _web_fetch_pending.has(fetch_id):
 			return
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
 		
-		# ทำความสะอาดตัวแปรบน window เมื่อใช้งานเสร็จ
 		var win: JavaScriptObject = JavaScriptBridge.get_interface("window")
 		if win:
 			win.eval("delete window._fetch_cb_" + str(fetch_id))
@@ -586,7 +588,9 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 		pending.call(ok, rows)
 	)
 
-	# 🌟 ผูก Callback ไว้บน window ของเบราว์เซอร์อย่างปลอดภัย
+	# 🌟🌟🌟 สำคัญมาก: เก็บอ้างอิงไว้ในระดับ Class ไม่ให้ Godot ลบทิ้งระหว่างรอ!
+	_web_fetch_callbacks[fetch_id] = js_cb 
+
 	var window: JavaScriptObject = JavaScriptBridge.get_interface("window")
 	var cb_prop_name: String = "_fetch_cb_" + str(fetch_id)
 	window[cb_prop_name] = js_cb
@@ -617,7 +621,7 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 		JSON.stringify(url),
 		JSON.stringify(url),
 		JSON.stringify(SupabaseConfig.anon_key),
-		JSON.stringify("Bearer " + auth_token), # 🌟 รวม Bearer และ Token แล้วค่อยแปลงทีเดียว!
+		JSON.stringify("Bearer " + auth_token),
 		cb_prop_name,
 		cb_prop_name,
 		cb_prop_name,
@@ -628,6 +632,7 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 	JavaScriptBridge.eval(js)
 
 	get_tree().create_timer(8.0).timeout.connect(func() -> void:
+		_web_fetch_callbacks.erase(fetch_id) # 🌟 เคลียร์อ้างอิงทิ้งหากเกิด Timeout
 		if not _web_fetch_pending.has(fetch_id):
 			return
 		print("[BrowserFetch] timeout — fallback HTTPRequest")
