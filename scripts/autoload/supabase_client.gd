@@ -545,12 +545,21 @@ func _init_web_bridge() -> void:
 	if _js_bridge_initialized:
 		return
 	_js_bridge_initialized = true
+	
+	# 🌟 ใช้รับข้อมูลเป็น JSON String ก้อนเดียว ป้องกันปัญหาอาร์กิวเมนต์สูญหาย
 	var cb := JavaScriptBridge.create_callback(func(args: Array) -> void:
-		if args.size() < 3:
+		if args.is_empty():
 			return
-		var fetch_id := int(args[0])
-		var status := int(args[1])
-		var body_text := str(args[2])
+		var json := JSON.new()
+		if json.parse(str(args[0])) != OK:
+			return
+		var data: Variant = json.get_data()
+		if not data is Dictionary:
+			return
+			
+		var fetch_id := int(data.get("id", 0))
+		var status := int(data.get("status", 0))
+		var body_text := str(data.get("body", ""))
 		_finish_web_fetch_by_id(fetch_id, status, body_text)
 	)
 	var window := JavaScriptBridge.get_interface("window")
@@ -563,6 +572,7 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 	var fetch_id := _web_fetch_seq
 	_web_fetch_pending[fetch_id] = callback
 
+	# 🌟 ห่อข้อมูลทุกอย่างเป็น JSON string ก่อนส่งเข้า Godot ผ่าน callback ตัวเดียว
 	var js := """
 	(function() {
 		fetch(%s, {
@@ -574,10 +584,12 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 			}
 		}).then(function(r) {
 			return r.text().then(function(t) {
-				window._godot_fetch_dispatcher(%d, r.status, t);
+				var packet = JSON.stringify({ id: %d, status: r.status, body: t });
+				window._godot_fetch_dispatcher(packet);
 			});
 		}).catch(function(e) {
-			window._godot_fetch_dispatcher(%d, 0, String(e));
+			var packet = JSON.stringify({ id: %d, status: 0, body: String(e) });
+			window._godot_fetch_dispatcher(packet);
 		});
 	})();
 	""" % [
@@ -589,7 +601,8 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 	]
 	JavaScriptBridge.eval(js)
 
-	var timer := get_tree().create_timer(6.0)
+	# เพิ่มเวลา Timer รอเป็น 10 วินาที ป้องกันเน็ตช้า
+	var timer := get_tree().create_timer(10.0)
 	timer.timeout.connect(func() -> void:
 		if not _web_fetch_pending.has(fetch_id):
 			return
