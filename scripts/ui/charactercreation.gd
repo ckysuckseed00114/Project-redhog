@@ -12,6 +12,7 @@ extends Control
 var selected_gender: String = "male"
 
 func _ready() -> void:
+	UITheme.apply_fonts_recursive(self)
 	if male_btn and not male_btn.pressed.is_connected(_on_male_pressed):
 		male_btn.pressed.connect(_on_male_pressed)
 			

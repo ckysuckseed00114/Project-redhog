@@ -18,7 +18,8 @@ extends Control
 @onready var reg_status_label: Label = $CenterContainer/MainPanel/MarginContainer/RegisterView/StatusLabel
 
 func _ready() -> void:
-	
+	UITheme.apply_fonts_recursive(self)
+
 	# ตั้งค่าให้ Label ตัดบรรทัดอัตโนมัติป้องกันข้อความล้นจอ
 	login_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	reg_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -48,6 +49,7 @@ func _ready() -> void:
 		reg_pass_input.text_submitted.connect(func(_t): if reg_email_input: reg_email_input.grab_focus())
 	if reg_email_input:
 		reg_email_input.text_submitted.connect(func(_t): _on_register_pressed())
+
 
 # สลับไปหน้าสมัครสมาชิก
 func _on_switch_to_register_pressed() -> void:

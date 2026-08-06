@@ -12,6 +12,7 @@ var back_btn: Button
 @onready var title_label: Label = $CenterContainer/MainPanel/MarginContainer/VBoxContainer/TitleLabel
 
 func _ready() -> void:
+	UITheme.apply_fonts_recursive(self)
 	center_container = $CenterContainer
 	
 	# สร้างโครงสร้าง UI และเคลียร์ปุ่มซ้ำ

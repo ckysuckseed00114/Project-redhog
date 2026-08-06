@@ -28,8 +28,30 @@ const COZY_BTN := Color8(0x1e, 0x1e, 0x1e)
 const COZY_SKILL_ICON := Color8(0x2d, 0x24, 0x0b)
 const COZY_SKILL_LOCKED := Color8(0x11, 0x11, 0x11)
 
+static var _game_font: Font
+
+
+static func game_font() -> Font:
+	if _game_font == null:
+		_game_font = load("res://Prompt-Light.ttf")
+	return _game_font
+
+
+static func apply_font(control: Control) -> void:
+	var font := game_font()
+	if font:
+		control.add_theme_font_override("font", font)
+
+
+static func apply_fonts_recursive(root: Node) -> void:
+	if root is Control:
+		apply_font(root)
+	for child in root.get_children():
+		apply_fonts_recursive(child)
+
 
 static func style_label(control: Control, font_size: int, color: Color = Color.WHITE, outline: int = 2) -> void:
+	apply_font(control)
 	control.add_theme_font_size_override("font_size", font_size)
 	control.add_theme_color_override("font_color", color)
 	control.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))

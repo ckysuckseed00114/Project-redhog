@@ -31,6 +31,8 @@ fallbacks=[]
 Compress=null
 compress=true
 preload=[]
-language_support={}
+language_support={
+"th": 0
+}
 script_support={}
 opentype_features={}
