@@ -1,5 +1,6 @@
 <script>
-window.__godotRestGet = function(url, apikey, authHeader, cb) {
+window.__godot_fetch_results = window.__godot_fetch_results || [];
+window.__godotRestGet = function(url, apikey, authHeader, fetchId) {
 	fetch(url, {
 		method: 'GET',
 		headers: {
@@ -9,10 +10,10 @@ window.__godotRestGet = function(url, apikey, authHeader, cb) {
 		}
 	}).then(function(r) {
 		return r.text().then(function(t) {
-			cb([JSON.stringify({ status: r.status, body: t })]);
+			window.__godot_fetch_results.push({ id: fetchId, status: r.status, body: t });
 		});
 	}).catch(function(e) {
-		cb([JSON.stringify({ status: 0, body: String(e) })]);
+		window.__godot_fetch_results.push({ id: fetchId, status: 0, body: String(e) });
 	});
 };
 </script>
