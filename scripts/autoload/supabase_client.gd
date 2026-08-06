@@ -491,7 +491,13 @@ func insert_data(table_name: String, data: Dictionary, callback: Callable = Call
 
 func fetch_data(table_name: String, query_params: String = "", callback: Callable = Callable()) -> void:
 	SupabaseConfig.ensure_loaded()
-	var url = SupabaseConfig.url + table_name + ("?" + query_params if query_params != "" else "")
+	
+	# 🛠️ โค้ดดักช่วยลบเครื่องหมายคำพูดที่เกินมาใน query_params อัตโนมัติ ป้องกัน Error 22P02
+	var fixed_params := query_params
+	if fixed_params != "":
+		fixed_params = fixed_params.replace('eq."', 'eq.').replace('"', '')
+	
+	var url = SupabaseConfig.url + table_name + ("?" + fixed_params if fixed_params != "" else "")
 	var auth_token = current_access_token if current_access_token != "" else SupabaseConfig.anon_key
 
 	if OS.has_feature("web"):
@@ -525,7 +531,6 @@ func fetch_data(table_name: String, query_params: String = "", callback: Callabl
 				callback.call(false, rows)
 	)
 	http.request(url, headers, HTTPClient.METHOD_GET)
-
 
 func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> void:
 	var anon_key := SupabaseConfig.anon_key
