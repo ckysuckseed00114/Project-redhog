@@ -1,0 +1,30 @@
+---
+description: ใช้ Claude Fable 5 เป็น model หลักสำหรับพัฒนาเกม REDHOG
+alwaysApply: true
+---
+
+# REDHOG — Primary Model: Fable 5
+
+โปรเจกต์ **RH: Redhog** (Godot 4) ใช้ **Claude Fable 5** เป็น model หลักสำหรับงานพัฒนาเกมทั้งหมด
+
+## Model slug (สำหรับ subagent / Task tool)
+
+- ใช้: `claude-fable-5-thinking-high`
+- ไม่ substitute เป็น model อื่น เว้นแต่ผู้ใช้ขอเปลี่ยนโดยตรง
+
+## เมื่อไหร่ควรใช้ Fable 5
+
+- เพิ่ม/แก้ gameplay, UI, combat, NPC, map, autoload
+- Refactor GDScript, scene structure, bug fixes
+- ออกแบบระบบใหม่ (party, boss, online, save/load)
+
+## แนวทางพัฒนาเกม (สอดคล้องกับโปรเจกต์)
+
+- Godot 4.x, native resolution 1280×720
+- ใช้ `BaseMap` เป็น base ของแมพ (`world.gd`, `capital_city.gd`)
+- UI ผ่าน `UIManager`, constants ผ่าน `GameConstants`
+- เปลี่ยนให้น้อยที่สุดที่จำเป็น — อย่า over-engineer
+
+## หมายเหตุ
+
+ถ้า Cursor ยังไม่ได้เลือก Fable 5 ใน UI ให้ผู้ใช้ตั้งเป็น default model ใน Chat/Agent settings ของโปรเจกต์นี้

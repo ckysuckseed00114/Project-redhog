@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>RH: Redhog</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+  }
+  #game-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+  }
+</style>
+</head>
+<body>
+<div id="game-container"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.70.0/phaser.min.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

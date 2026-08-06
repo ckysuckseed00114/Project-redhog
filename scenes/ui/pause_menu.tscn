@@ -1,0 +1,210 @@
+[gd_scene format=3 uid="uid://1iou02rjp3y5"]
+
+[ext_resource type="Script" uid="uid://ctdkvejps487n" path="res://scripts/ui/pause_menu.gd" id="1_6tw0m"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_window"]
+bg_color = Color(0.12, 0.10, 0.18, 0.96)
+border_color = Color(0.9490196, 0.76862746, 0.05882353, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+shadow_size = 10
+shadow_color = Color(0, 0, 0, 0.5)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_normal"]
+bg_color = Color(0.17254902, 0.24313726, 0.3137255, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.8, 0.8, 0.8, 0.5)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_hover"]
+bg_color = Color(0.25, 0.35, 0.45, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.9490196, 0.76862746, 0.05882353, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_danger"]
+bg_color = Color(0.75, 0.25, 0.25, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.8, 0.8, 0.8, 0.5)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="PauseMenu" type="CanvasLayer" unique_id=823791474]
+process_mode = 3
+script = ExtResource("1_6tw0m")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=626309437]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.65)
+
+[node name="Panel" type="Panel" parent="." unique_id=865295874]
+offset_left = 150.0
+offset_top = 50.0
+offset_right = 330.0
+offset_bottom = 220.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_window")
+
+[node name="TitleLabel" type="Label" parent="Panel" unique_id=1590646754]
+layout_mode = 0
+offset_top = 8.0
+offset_right = 180.0
+offset_bottom = 26.0
+theme_override_colors/font_color = Color(0.9490196, 0.76862746, 0.05882353, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 8
+text = "- GAME MENU -"
+horizontal_alignment = 1
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel" unique_id=1294601176]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 30.0
+offset_right = 160.0
+offset_bottom = 160.0
+theme_override_constants/separation = 6
+
+[node name="เล่นต่อ" type="Button" parent="Panel/VBoxContainer" unique_id=1547623971]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 6
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_hover")
+text = "เล่นต่อ (Resume)"
+
+[node name="ตั้งค่า" type="Button" parent="Panel/VBoxContainer" unique_id="123456789"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 6
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_hover")
+text = "ตั้งค่าหน้าจอ (Settings)"
+
+[node name="เลือกตัวละคร" type="Button" parent="Panel/VBoxContainer" unique_id=1983965811]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 6
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_hover")
+text = "เลือกตัวละคร"
+
+[node name="ออกจากระบบ" type="Button" parent="Panel/VBoxContainer" unique_id=2111249931]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 6
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_danger")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_hover")
+text = "ออกจากระบบ (Logout)"
+
+[node name="SettingsPanel" type="Panel" parent="." unique_id="987654321"]
+visible = false
+offset_left = 140.0
+offset_top = 40.0
+offset_right = 340.0
+offset_bottom = 230.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_window")
+
+[node name="TitleLabel" type="Label" parent="SettingsPanel" unique_id="111222333"]
+layout_mode = 0
+offset_top = 8.0
+offset_right = 200.0
+offset_bottom = 26.0
+theme_override_colors/font_color = Color(0.9490196, 0.76862746, 0.05882353, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 8
+text = "- SCREEN SETTINGS -"
+horizontal_alignment = 1
+
+[node name="VBoxContainer" type="VBoxContainer" parent="SettingsPanel" unique_id="444555666"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 30.0
+offset_right = 180.0
+offset_bottom = 175.0
+theme_override_constants/separation = 6
+
+[node name="Res_1" type="Button" parent="SettingsPanel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+theme_override_font_sizes/font_size = 6
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+text = "1280 x 720 (HD)"
+
+[node name="Res_2" type="Button" parent="SettingsPanel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+theme_override_font_sizes/font_size = 6
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+text = "2560 x 1440 (2x HD)"
+
+[node name="Res_3" type="Button" parent="SettingsPanel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+theme_override_font_sizes/font_size = 6
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+text = "3840 x 2160 (4K)"
+
+[node name="Fullscreen" type="Button" parent="SettingsPanel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+theme_override_font_sizes/font_size = 6
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+text = "สลับโหมดเต็มจอ (Fullscreen)"
+
+[node name="Back" type="Button" parent="SettingsPanel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+theme_override_font_sizes/font_size = 6
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+text = "ย้อนกลับ (Back)"
+
+[connection signal="pressed" from="Panel/VBoxContainer/เล่นต่อ" to="." method="_on_resume_pressed"]
+[connection signal="pressed" from="Panel/VBoxContainer/ตั้งค่า" to="." method="_on_settings_pressed"]
+[connection signal="pressed" from="Panel/VBoxContainer/เลือกตัวละคร" to="." method="_on_character_selection_pressed"]
+[connection signal="pressed" from="Panel/VBoxContainer/ออกจากระบบ" to="." method="_on_login_pressed"]
+[connection signal="pressed" from="SettingsPanel/VBoxContainer/Res_1" to="." method="_on_res_960_pressed"]
+[connection signal="pressed" from="SettingsPanel/VBoxContainer/Res_2" to="." method="_on_res_1440_pressed"]
+[connection signal="pressed" from="SettingsPanel/VBoxContainer/Res_3" to="." method="_on_res_1920_pressed"]
+[connection signal="pressed" from="SettingsPanel/VBoxContainer/Fullscreen" to="." method="_on_fullscreen_pressed"]
+[connection signal="pressed" from="SettingsPanel/VBoxContainer/Back" to="." method="_on_settings_back_pressed"]

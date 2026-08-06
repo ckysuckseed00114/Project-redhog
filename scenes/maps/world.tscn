@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://cbkkx7cktbxvv"]
+
+[ext_resource type="Script" uid="uid://bv4ohrtuil6vp" path="res://scripts/world/world.gd" id="1_55aix"]
+[ext_resource type="PackedScene" uid="uid://j3jdh55wn3l2" path="res://scenes/objects/portal.tscn" id="2_lvkeh"]
+[ext_resource type="Script" uid="uid://cwb5xxavik2l8" path="res://scripts/managers/monster_manager.gd" id="3_74gp3"]
+[ext_resource type="Script" uid="uid://bmh6nglj68jdl" path="res://scripts/world/world_effects.gd" id="4_pq5yi"]
+
+[node name="World" type="Node2D" unique_id=2029813109]
+script = ExtResource("1_55aix")
+
+[node name="Portal" parent="." unique_id=1734662257 groups=["portal"] instance=ExtResource("2_lvkeh")]
+position = Vector2(640, 14)
+target_scene = "uid://ckcae4kmkro5q"
+destination_name = "Capital City"
+spawn_position = Vector2(638, 730)
+
+[node name="Ground" type="Sprite2D" parent="." unique_id=2110325026]
+
+[node name="Monsters" type="Node2D" parent="." unique_id=516286500]
+script = ExtResource("3_74gp3")
+
+[node name="WorldEffects" type="Node2D" parent="." unique_id=2094198597]
+script = ExtResource("4_pq5yi")

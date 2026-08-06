@@ -1,0 +1,41 @@
+[gd_scene format=3 uid="uid://bc3sx8pyrjrwx"]
+
+[ext_resource type="Script" uid="uid://ynrjsukmngck" path="res://scripts/characters/npc.gd" id="1_nh2m4"]
+[ext_resource type="Texture2D" uid="uid://daaxbbv7pj8ff" path="res://animation/Gemini_Generated_Image_c566dnc566dnc566-Photoroom.png" id="2_84hc2"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_detect"]
+size = Vector2(32, 20)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
+size = Vector2(30, 37)
+
+[sub_resource type="Animation" id="Animation_84hc2"]
+resource_name = "idle"
+length = 0.4
+loop_mode = 1
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_bgitj"]
+_data = {
+&"idle": SubResource("Animation_84hc2")
+}
+
+[node name="npc" type="Area2D" unique_id=430187628]
+script = ExtResource("1_nh2m4")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=220856885]
+scale = Vector2(0.02, 0.02)
+texture = ExtResource("2_84hc2")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=605648248]
+position = Vector2(8, 16)
+shape = SubResource("RectangleShape2D_detect")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=334015654]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=1687838875]
+position = Vector2(8, 7)
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=635286719]
+libraries/ = SubResource("AnimationLibrary_bgitj")
+autoplay = &"idle"

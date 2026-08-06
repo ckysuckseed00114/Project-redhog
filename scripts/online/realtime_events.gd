@@ -1,0 +1,36 @@
+class_name RealtimeEvents
+extends RefCounted
+
+# realtime_events.gd — ชื่อ event และ key ของ payload Realtime
+
+const POS_UPDATE := "pos_update"
+const CHAT_MSG := "chat_msg"
+const MOB_DIE := "mob_die"
+const MOB_HP := "mob_hp"
+const BOSS_SPAWN := "boss_spawn"
+const BOSS_HP := "boss_hp"
+const BOSS_DEFEATED := "boss_defeated"
+const PARTY_UPDATE := "party_update"
+const PARTY_INVITE := "party_invite"
+const PARTY_LEAVE := "party_leave"
+
+const KEY_EVENT := "event"
+const KEY_CHARACTER_ID := "character_id"
+const KEY_CURRENT_SCENE := "current_scene"
+const KEY_MAP_SCENE := "map_scene"
+const KEY_SYNC_ID := "sync_id"
+const KEY_RESPAWN_AT := "respawn_at"
+const KEY_HP := "hp"
+const KEY_POS_X := "pos_x"
+const KEY_POS_Y := "pos_y"
+const KEY_NAME := "name"
+const KEY_GENDER := "gender"
+const KEY_CURRENT_JOB := "current_job"
+const KEY_SENDER_NAME := "sender_name"
+const KEY_TEXT := "text"
+const KEY_CYCLE := "cycle"
+const KEY_BOSS_ID := "boss_id"
+const KEY_PARTY_ID := "party_id"
+const KEY_MEMBERS := "members"
+const KEY_TARGET_CHARACTER_ID := "target_character_id"
+const KEY_INVITER_NAME := "inviter_name"

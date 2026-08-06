@@ -1,0 +1,382 @@
+[gd_scene format=3 uid="uid://bihs3u4maapj3"]
+
+[ext_resource type="Script" uid="uid://b67up22hh7dtf" path="res://scripts/characters/monster.gd" id="1_in4fe"]
+[ext_resource type="Texture2D" uid="uid://dml7nwp2orbff" path="res://animation/monster/Orc/PNG/PNG Sequences/Slashing/0_Orc_Slashing_000.png" id="1_ydxhy"]
+[ext_resource type="Texture2D" uid="uid://bbwmcll02geoo" path="res://animation/monster/Orc/PNG/PNG Sequences/Slashing/0_Orc_Slashing_001.png" id="2_710w2"]
+[ext_resource type="Texture2D" uid="uid://ppf8xj0be8mw" path="res://animation/monster/Orc/PNG/PNG Sequences/Slashing/0_Orc_Slashing_002.png" id="3_in4fe"]
+[ext_resource type="Texture2D" uid="uid://dqeeiv7ore8gr" path="res://animation/monster/Orc/PNG/PNG Sequences/Slashing/0_Orc_Slashing_003.png" id="4_hbxbv"]
+[ext_resource type="Texture2D" uid="uid://8t30cd1t6xir" path="res://animation/monster/Orc/PNG/PNG Sequences/Slashing/0_Orc_Slashing_004.png" id="5_3j0e7"]
+[ext_resource type="Texture2D" uid="uid://clk0mqp8t6yei" path="res://animation/monster/Orc/PNG/PNG Sequences/Slashing/0_Orc_Slashing_005.png" id="6_1gemh"]
+[ext_resource type="Texture2D" uid="uid://dvpqngwqyrjje" path="res://animation/monster/Orc/PNG/PNG Sequences/Slashing/0_Orc_Slashing_006.png" id="7_cp6ly"]
+[ext_resource type="Texture2D" uid="uid://cge3fqnm14jrt" path="res://animation/monster/Orc/PNG/PNG Sequences/Slashing/0_Orc_Slashing_007.png" id="8_44qjp"]
+[ext_resource type="Texture2D" uid="uid://leo2y6c3bs3p" path="res://animation/monster/Orc/PNG/PNG Sequences/Slashing/0_Orc_Slashing_008.png" id="9_xw388"]
+[ext_resource type="Texture2D" uid="uid://d1flexwd1a4ng" path="res://animation/monster/Orc/PNG/PNG Sequences/Slashing/0_Orc_Slashing_009.png" id="10_y4n1r"]
+[ext_resource type="Texture2D" uid="uid://ms4l0wa5ngqi" path="res://animation/monster/Orc/PNG/PNG Sequences/Slashing/0_Orc_Slashing_010.png" id="11_t8onf"]
+[ext_resource type="Texture2D" uid="uid://bhtvw8w784mt8" path="res://animation/monster/Orc/PNG/PNG Sequences/Slashing/0_Orc_Slashing_011.png" id="12_flta5"]
+[ext_resource type="Texture2D" uid="uid://c1ae4kqpk1n3h" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_000.png" id="13_tx2hs"]
+[ext_resource type="Texture2D" uid="uid://c0mp3m4cbq22w" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_001.png" id="14_m47kr"]
+[ext_resource type="Texture2D" uid="uid://caevn5ybas7x2" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_002.png" id="15_2gu7g"]
+[ext_resource type="Texture2D" uid="uid://cb72xxla70y1d" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_003.png" id="16_pfhjb"]
+[ext_resource type="Texture2D" uid="uid://bxq601op75s07" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_004.png" id="17_g03iu"]
+[ext_resource type="Texture2D" uid="uid://dk4sdv4gbuhcg" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_005.png" id="18_l2hkf"]
+[ext_resource type="Texture2D" uid="uid://bfq3cpdd0owk6" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_006.png" id="19_gk4hx"]
+[ext_resource type="Texture2D" uid="uid://ktrb7da6vmx8" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_007.png" id="20_fccce"]
+[ext_resource type="Texture2D" uid="uid://ubldjhil1c8r" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_008.png" id="21_6k7i7"]
+[ext_resource type="Texture2D" uid="uid://cgtcbot3qr1ll" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_009.png" id="22_mmdho"]
+[ext_resource type="Texture2D" uid="uid://bla556hnt7mxr" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_010.png" id="23_pci8q"]
+[ext_resource type="Texture2D" uid="uid://cmlxfcghj7y7a" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_011.png" id="24_asi5d"]
+[ext_resource type="Texture2D" uid="uid://cehx2d54n2e4v" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_012.png" id="25_v2486"]
+[ext_resource type="Texture2D" uid="uid://cyeqtjyp68peh" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_013.png" id="26_lka2l"]
+[ext_resource type="Texture2D" uid="uid://b46v8kabuxbr0" path="res://animation/monster/Orc/PNG/PNG Sequences/Dying/0_Orc_Dying_014.png" id="27_e8lg6"]
+[ext_resource type="Texture2D" uid="uid://bdrod7c5ht3us" path="res://animation/monster/Orc/PNG/PNG Sequences/Hurt/0_Orc_Hurt_000.png" id="28_dllks"]
+[ext_resource type="Texture2D" uid="uid://p8voluulhoe7" path="res://animation/monster/Orc/PNG/PNG Sequences/Hurt/0_Orc_Hurt_001.png" id="29_0slo6"]
+[ext_resource type="Texture2D" uid="uid://5tv1swkmi5hg" path="res://animation/monster/Orc/PNG/PNG Sequences/Hurt/0_Orc_Hurt_002.png" id="30_niyey"]
+[ext_resource type="Texture2D" uid="uid://byk2dypy5aa5j" path="res://animation/monster/Orc/PNG/PNG Sequences/Hurt/0_Orc_Hurt_003.png" id="31_shwaj"]
+[ext_resource type="Texture2D" uid="uid://b6syedgxakl6n" path="res://animation/monster/Orc/PNG/PNG Sequences/Hurt/0_Orc_Hurt_004.png" id="32_vwyws"]
+[ext_resource type="Texture2D" uid="uid://d4c4kjcsdoocq" path="res://animation/monster/Orc/PNG/PNG Sequences/Hurt/0_Orc_Hurt_005.png" id="33_bgkbv"]
+[ext_resource type="Texture2D" uid="uid://dyt5y65qe6cbk" path="res://animation/monster/Orc/PNG/PNG Sequences/Hurt/0_Orc_Hurt_006.png" id="34_a8wef"]
+[ext_resource type="Texture2D" uid="uid://h5jdt6wcloci" path="res://animation/monster/Orc/PNG/PNG Sequences/Hurt/0_Orc_Hurt_007.png" id="35_tpm7d"]
+[ext_resource type="Texture2D" uid="uid://bpn4ro55b3q6u" path="res://animation/monster/Orc/PNG/PNG Sequences/Hurt/0_Orc_Hurt_008.png" id="36_rce0w"]
+[ext_resource type="Texture2D" uid="uid://b22nmro0psfqn" path="res://animation/monster/Orc/PNG/PNG Sequences/Hurt/0_Orc_Hurt_009.png" id="37_etard"]
+[ext_resource type="Texture2D" uid="uid://bwvpwrjv6mkil" path="res://animation/monster/Orc/PNG/PNG Sequences/Hurt/0_Orc_Hurt_010.png" id="38_acfko"]
+[ext_resource type="Texture2D" uid="uid://b53sxshirtgyb" path="res://animation/monster/Orc/PNG/PNG Sequences/Hurt/0_Orc_Hurt_011.png" id="39_6wc5y"]
+[ext_resource type="Texture2D" uid="uid://dkc0xbwaryruq" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_000.png" id="40_03lrb"]
+[ext_resource type="Texture2D" uid="uid://dqn347oqbqxca" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_001.png" id="41_ia4px"]
+[ext_resource type="Texture2D" uid="uid://qqecmikapvc6" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_002.png" id="42_xg0yi"]
+[ext_resource type="Texture2D" uid="uid://b5wd1nweog1y2" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_003.png" id="43_ry0sl"]
+[ext_resource type="Texture2D" uid="uid://csgfo6hr7lc0m" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_004.png" id="44_te0s4"]
+[ext_resource type="Texture2D" uid="uid://c2rkbxwiqhwx8" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_005.png" id="45_plccd"]
+[ext_resource type="Texture2D" uid="uid://d20kc0y6aio3n" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_006.png" id="46_j8uml"]
+[ext_resource type="Texture2D" uid="uid://hd56fuuaxur8" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_007.png" id="47_uny3m"]
+[ext_resource type="Texture2D" uid="uid://bs1a7f0ddnyru" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_008.png" id="48_sxcgb"]
+[ext_resource type="Texture2D" uid="uid://c1iskrcfaia4k" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_009.png" id="49_5ycu1"]
+[ext_resource type="Texture2D" uid="uid://dwo5wx53ygnhu" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_010.png" id="50_riwfi"]
+[ext_resource type="Texture2D" uid="uid://ckd4weu4jdtuq" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_011.png" id="51_84xks"]
+[ext_resource type="Texture2D" uid="uid://dbntn5u2asbi7" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_012.png" id="52_ocmx1"]
+[ext_resource type="Texture2D" uid="uid://s1vxjpnl2dr0" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_013.png" id="53_u1nrq"]
+[ext_resource type="Texture2D" uid="uid://cdo0wp50vrwlp" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_014.png" id="54_1dxif"]
+[ext_resource type="Texture2D" uid="uid://ci1qkkyu1ik35" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_015.png" id="55_38aps"]
+[ext_resource type="Texture2D" uid="uid://b7hvi26yxrryx" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_016.png" id="56_34m64"]
+[ext_resource type="Texture2D" uid="uid://bnm43fntx4nsr" path="res://animation/monster/Orc/PNG/PNG Sequences/Idle/0_Orc_Idle_017.png" id="57_3cqvq"]
+[ext_resource type="Texture2D" uid="uid://blixvf1u1jghs" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_000.png" id="58_gt5hd"]
+[ext_resource type="Texture2D" uid="uid://b4m1osf24jant" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_001.png" id="59_g0jl5"]
+[ext_resource type="Texture2D" uid="uid://ybiqt6pgmpvy" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_002.png" id="60_cen7i"]
+[ext_resource type="Texture2D" uid="uid://dthuxul8ynga7" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_003.png" id="61_qolyg"]
+[ext_resource type="Texture2D" uid="uid://bm6m2o50py2gs" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_004.png" id="62_cpsc5"]
+[ext_resource type="Texture2D" uid="uid://by0liy6gj3g0a" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_005.png" id="63_x2r7m"]
+[ext_resource type="Texture2D" uid="uid://dwd5etyrraen2" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_006.png" id="64_8jxte"]
+[ext_resource type="Texture2D" uid="uid://c8b3hhgobhymc" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_007.png" id="65_8b8ju"]
+[ext_resource type="Texture2D" uid="uid://bxkn732qjyktd" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_008.png" id="66_arii1"]
+[ext_resource type="Texture2D" uid="uid://cy4uhlaf6bpc7" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_009.png" id="67_btacn"]
+[ext_resource type="Texture2D" uid="uid://crroyugfrkifw" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_010.png" id="68_hbjmc"]
+[ext_resource type="Texture2D" uid="uid://byklulb7h64p" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_011.png" id="69_82bld"]
+[ext_resource type="Texture2D" uid="uid://5udfqh0ql5go" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_012.png" id="70_ddrtl"]
+[ext_resource type="Texture2D" uid="uid://ddky7ww4043nr" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_013.png" id="71_xumix"]
+[ext_resource type="Texture2D" uid="uid://b0ftliw75t8od" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_014.png" id="72_1axs6"]
+[ext_resource type="Texture2D" uid="uid://djhsmfngt8t7o" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_015.png" id="73_8hxh4"]
+[ext_resource type="Texture2D" uid="uid://cmp7ynbwicqgs" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_016.png" id="74_m0i7q"]
+[ext_resource type="Texture2D" uid="uid://d7n1ewkqpl1k" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_017.png" id="75_p0p3k"]
+[ext_resource type="Texture2D" uid="uid://dlsta5o6iuayb" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_018.png" id="76_uqgaf"]
+[ext_resource type="Texture2D" uid="uid://bymox42xs4j85" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_019.png" id="77_uoc7i"]
+[ext_resource type="Texture2D" uid="uid://b0s56ymv3x4k6" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_020.png" id="78_yq4kc"]
+[ext_resource type="Texture2D" uid="uid://7g6bc13mxoah" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_021.png" id="79_n3msg"]
+[ext_resource type="Texture2D" uid="uid://ebjdj1jyo57" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_022.png" id="80_nap4c"]
+[ext_resource type="Texture2D" uid="uid://dbrmaetdtog1j" path="res://animation/monster/Orc/PNG/PNG Sequences/Walking/0_Orc_Walking_023.png" id="81_7u1qn"]
+[ext_resource type="Script" uid="uid://c85xkjle37nus" path="res://scripts/ui/poring_hp_bar.gd" id="82_710w2"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_ibjym"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_ydxhy")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_710w2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_in4fe")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_hbxbv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_3j0e7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_1gemh")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_cp6ly")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_44qjp")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_xw388")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_y4n1r")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_t8onf")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_flta5")
+}],
+"loop": 1,
+"name": &"attack",
+"speed": 11.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("13_tx2hs")
+}, {
+"duration": 1.0,
+"texture": ExtResource("14_m47kr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("15_2gu7g")
+}, {
+"duration": 1.0,
+"texture": ExtResource("16_pfhjb")
+}, {
+"duration": 1.0,
+"texture": ExtResource("17_g03iu")
+}, {
+"duration": 1.0,
+"texture": ExtResource("18_l2hkf")
+}, {
+"duration": 1.0,
+"texture": ExtResource("19_gk4hx")
+}, {
+"duration": 1.0,
+"texture": ExtResource("20_fccce")
+}, {
+"duration": 1.0,
+"texture": ExtResource("21_6k7i7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("22_mmdho")
+}, {
+"duration": 1.0,
+"texture": ExtResource("23_pci8q")
+}, {
+"duration": 1.0,
+"texture": ExtResource("24_asi5d")
+}, {
+"duration": 1.0,
+"texture": ExtResource("25_v2486")
+}, {
+"duration": 1.0,
+"texture": ExtResource("26_lka2l")
+}, {
+"duration": 1.0,
+"texture": ExtResource("27_e8lg6")
+}],
+"loop": 0,
+"name": &"dying",
+"speed": 14.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("28_dllks")
+}, {
+"duration": 1.0,
+"texture": ExtResource("29_0slo6")
+}, {
+"duration": 1.0,
+"texture": ExtResource("30_niyey")
+}, {
+"duration": 1.0,
+"texture": ExtResource("31_shwaj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("32_vwyws")
+}, {
+"duration": 1.0,
+"texture": ExtResource("33_bgkbv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("34_a8wef")
+}, {
+"duration": 1.0,
+"texture": ExtResource("35_tpm7d")
+}, {
+"duration": 1.0,
+"texture": ExtResource("36_rce0w")
+}, {
+"duration": 1.0,
+"texture": ExtResource("37_etard")
+}, {
+"duration": 1.0,
+"texture": ExtResource("38_acfko")
+}, {
+"duration": 1.0,
+"texture": ExtResource("39_6wc5y")
+}],
+"loop": 0,
+"name": &"hurt",
+"speed": 11.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("40_03lrb")
+}, {
+"duration": 1.0,
+"texture": ExtResource("41_ia4px")
+}, {
+"duration": 1.0,
+"texture": ExtResource("42_xg0yi")
+}, {
+"duration": 1.0,
+"texture": ExtResource("43_ry0sl")
+}, {
+"duration": 1.0,
+"texture": ExtResource("44_te0s4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("45_plccd")
+}, {
+"duration": 1.0,
+"texture": ExtResource("46_j8uml")
+}, {
+"duration": 1.0,
+"texture": ExtResource("47_uny3m")
+}, {
+"duration": 1.0,
+"texture": ExtResource("48_sxcgb")
+}, {
+"duration": 1.0,
+"texture": ExtResource("49_5ycu1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("50_riwfi")
+}, {
+"duration": 1.0,
+"texture": ExtResource("51_84xks")
+}, {
+"duration": 1.0,
+"texture": ExtResource("52_ocmx1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("53_u1nrq")
+}, {
+"duration": 1.0,
+"texture": ExtResource("54_1dxif")
+}, {
+"duration": 1.0,
+"texture": ExtResource("55_38aps")
+}, {
+"duration": 1.0,
+"texture": ExtResource("56_34m64")
+}, {
+"duration": 1.0,
+"texture": ExtResource("57_3cqvq")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 17.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("58_gt5hd")
+}, {
+"duration": 1.0,
+"texture": ExtResource("59_g0jl5")
+}, {
+"duration": 1.0,
+"texture": ExtResource("60_cen7i")
+}, {
+"duration": 1.0,
+"texture": ExtResource("61_qolyg")
+}, {
+"duration": 1.0,
+"texture": ExtResource("62_cpsc5")
+}, {
+"duration": 1.0,
+"texture": ExtResource("63_x2r7m")
+}, {
+"duration": 1.0,
+"texture": ExtResource("64_8jxte")
+}, {
+"duration": 1.0,
+"texture": ExtResource("65_8b8ju")
+}, {
+"duration": 1.0,
+"texture": ExtResource("66_arii1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("67_btacn")
+}, {
+"duration": 1.0,
+"texture": ExtResource("68_hbjmc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("69_82bld")
+}, {
+"duration": 1.0,
+"texture": ExtResource("70_ddrtl")
+}, {
+"duration": 1.0,
+"texture": ExtResource("71_xumix")
+}, {
+"duration": 1.0,
+"texture": ExtResource("72_1axs6")
+}, {
+"duration": 1.0,
+"texture": ExtResource("73_8hxh4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("74_m0i7q")
+}, {
+"duration": 1.0,
+"texture": ExtResource("75_p0p3k")
+}, {
+"duration": 1.0,
+"texture": ExtResource("76_uqgaf")
+}, {
+"duration": 1.0,
+"texture": ExtResource("77_uoc7i")
+}, {
+"duration": 1.0,
+"texture": ExtResource("78_yq4kc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("79_n3msg")
+}, {
+"duration": 1.0,
+"texture": ExtResource("80_nap4c")
+}, {
+"duration": 1.0,
+"texture": ExtResource("81_7u1qn")
+}],
+"loop": 1,
+"name": &"walking",
+"speed": 23.0
+}]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_abi3o"]
+radius = 5.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_wvhbo"]
+radius = 12.0
+
+[node name="Fabre" type="CharacterBody2D" unique_id=134756485]
+script = ExtResource("1_in4fe")
+monster_id = "fabre"
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=693431399]
+scale = Vector2(0.03, 0.03)
+sprite_frames = SubResource("SpriteFrames_ibjym")
+animation = &"attack"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=911191206]
+shape = SubResource("CircleShape2D_abi3o")
+
+[node name="HpBar" type="Node2D" parent="." unique_id=1860342374]
+script = ExtResource("82_710w2")
+
+[node name="ClickArea" type="Area2D" parent="." unique_id=286189192]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ClickArea" unique_id=285734355]
+shape = SubResource("CircleShape2D_wvhbo")

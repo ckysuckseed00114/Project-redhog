@@ -1,0 +1,166 @@
+[gd_scene format=3 uid="uid://ckcae4kmkro5q"]
+
+[ext_resource type="Script" uid="uid://8mefi68pdah8" path="res://scripts/world/capital_city.gd" id="1_2urd4"]
+[ext_resource type="PackedScene" uid="uid://j3jdh55wn3l2" path="res://scenes/objects/portal.tscn" id="2_pjic3"]
+[ext_resource type="PackedScene" uid="uid://bc3sx8pyrjrwx" path="res://scenes/characters/npc.tscn" id="3_6njqs"]
+[ext_resource type="Script" uid="uid://ynrjsukmngck" path="res://scripts/characters/npc.gd" id="4_naylo"]
+[ext_resource type="Texture2D" uid="uid://2ee2iht5w66i" path="res://animation/npcs/warpguide/1.png" id="5_4kh0b"]
+[ext_resource type="Texture2D" uid="uid://bipdvhqvy1axl" path="res://animation/npcs/warpguide/2.png" id="6_6adeq"]
+[ext_resource type="Texture2D" uid="uid://dsng34fis470s" path="res://animation/npcs/warpguide/3.png" id="7_q3sgd"]
+[ext_resource type="Texture2D" uid="uid://bf34mr82x8bxm" path="res://animation/npcs/warpguide/4.png" id="8_s7s0r"]
+[ext_resource type="Texture2D" uid="uid://d3cme0hsxrm4k" path="res://animation/npcs/jobmaster.png" id="9_o2slv"]
+[ext_resource type="PackedScene" uid="uid://c8shopnpc01" path="res://scenes/characters/shop_npc.tscn" id="10_shop"]
+[ext_resource type="PackedScene" uid="uid://c8potionnpc01" path="res://scenes/characters/npcs/potion_shop.tscn" id="11_potion"]
+[ext_resource type="PackedScene" uid="uid://c8weaponnpc01" path="res://scenes/characters/npcs/weapon_shop.tscn" id="12_weapon"]
+[ext_resource type="PackedScene" uid="uid://bd3tfsgtyglb5" path="res://scenes/characters/npcs/upgrade_master.tscn" id="13_upgrade"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_detect"]
+size = Vector2(32, 20)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
+size = Vector2(30, 37)
+
+[sub_resource type="Animation" id="Animation_f02gb"]
+resource_name = "idle"
+length = 0.8
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [ExtResource("5_4kh0b"), ExtResource("6_6adeq"), ExtResource("7_q3sgd"), ExtResource("8_s7s0r"), ExtResource("5_4kh0b"), ExtResource("6_6adeq"), ExtResource("7_q3sgd"), ExtResource("8_s7s0r")]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_njstu"]
+_data = {
+&"idle": SubResource("Animation_f02gb")
+}
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_rtbwu"]
+size = Vector2(20, 23)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_jy6y0"]
+size = Vector2(17, 37.75)
+
+[sub_resource type="Animation" id="Animation_reset"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [0]
+}
+
+[sub_resource type="Animation" id="Animation_idle"]
+resource_name = "idle"
+length = 0.8
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [0, 1, 2, 3, 4, 5, 6, 7]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_jobmaster"]
+_data = {
+&"RESET": SubResource("Animation_reset"),
+&"idle": SubResource("Animation_idle")
+}
+
+[node name="CapitalCity" type="Node2D" unique_id=1277846304]
+script = ExtResource("1_2urd4")
+
+[node name="Portal" parent="." unique_id=1734662257 groups=["portal"] instance=ExtResource("2_pjic3")]
+position = Vector2(640, 782)
+target_scene = "uid://cbkkx7cktbxvv"
+destination_name = "Training Field"
+spawn_position = Vector2(638, 80)
+
+[node name="Ground" type="Sprite2D" parent="." unique_id=1992098597]
+
+[node name="quest board" parent="." unique_id=430187628 instance=ExtResource("3_6njqs")]
+position = Vector2(634, 407)
+npc_id = "quest_board"
+
+[node name="WarpGuide" type="Area2D" parent="." unique_id=1880706498]
+position = Vector2(520, 520)
+script = ExtResource("4_naylo")
+npc_id = "warp_guide"
+foot_ui_extra_offset = Vector2(-3, 0)
+
+[node name="Sprite2D" type="Sprite2D" parent="WarpGuide" unique_id=220856885]
+scale = Vector2(0.23, 0.23)
+texture = ExtResource("5_4kh0b")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WarpGuide" unique_id=605648248]
+position = Vector2(8, 16)
+shape = SubResource("RectangleShape2D_detect")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="WarpGuide" unique_id=334015654]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WarpGuide/StaticBody2D" unique_id=1687838875]
+position = Vector2(8, 7)
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="animawarpguide" type="AnimationPlayer" parent="WarpGuide" unique_id=512967672]
+libraries/ = SubResource("AnimationLibrary_njstu")
+autoplay = &"idle"
+
+[node name="JobMaster" type="Area2D" parent="." unique_id=1909271645]
+position = Vector2(714, 421)
+script = ExtResource("4_naylo")
+npc_id = "job_master"
+
+[node name="Sprite2D" type="Sprite2D" parent="JobMaster" unique_id=1912694930]
+position = Vector2(0, -8)
+scale = Vector2(0.15, 0.15)
+texture = ExtResource("9_o2slv")
+hframes = 8
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="JobMaster" unique_id=33651995]
+position = Vector2(9, 8)
+shape = SubResource("RectangleShape2D_rtbwu")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="JobMaster" unique_id=1922130898]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="JobMaster/StaticBody2D" unique_id=580137596]
+position = Vector2(9, -1)
+shape = SubResource("RectangleShape2D_jy6y0")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="JobMaster" unique_id=649461846]
+libraries/ = SubResource("AnimationLibrary_jobmaster")
+autoplay = &"idle"
+
+[node name="ShopNPC" parent="." unique_id=1563478538 instance=ExtResource("10_shop")]
+
+[node name="PotionShop" parent="." unique_id=1021269862 instance=ExtResource("11_potion")]
+position = Vector2(480, 421)
+
+[node name="WeaponShop" parent="." unique_id=428683731 instance=ExtResource("12_weapon")]
+position = Vector2(600, 421)
+
+[node name="SavePoint" parent="." unique_id=161564717 instance=ExtResource("3_6njqs")]
+position = Vector2(440, 560)
+npc_id = "save_point"
+
+[node name="UpgradeMaster" parent="." unique_id=1897363058 instance=ExtResource("13_upgrade")]
+position = Vector2(780, 421)

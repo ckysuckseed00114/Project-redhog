@@ -1,0 +1,192 @@
+[gd_scene format=3 uid="uid://duh1xkqhe1io6"]
+
+[ext_resource type="Script" uid="uid://db2muapdm5nqt" path="res://scripts/ui/login_screen.gd" id="1_frse4"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.0666667, 0.054902, 0.054902, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.85098, 0.682353, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0, 0, 0, 0.7)
+shadow_size = 14
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input"]
+content_margin_left = 12.0
+content_margin_right = 12.0
+bg_color = Color(0.121569, 0.0980392, 0.0980392, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.28, 0.2, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn"]
+bg_color = Color(0.75, 0.12, 0.12, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_alt"]
+bg_color = Color(0.18, 0.14, 0.14, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.85098, 0.682353, 0.2, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="LoginView" type="Control" unique_id=978349435]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_frse4")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1177532433]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.02, 0.02, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=947752551]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+offset_transform_enabled = true
+
+[node name="MainPanel" type="PanelContainer" parent="CenterContainer" unique_id=1714822550]
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/MainPanel" unique_id=1316217806]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/MainPanel/MarginContainer" unique_id=773407347]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=1908661493]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.78, 0.25, 1)
+theme_override_font_sizes/font_size = 19
+text = "🎮 REDHOG ONLINE"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=764110549]
+layout_mode = 2
+
+[node name="IDInput" type="LineEdit" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=967703054]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_override_colors/font_uneditable_color = Color(1, 1, 1, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_input")
+placeholder_text = "ระบุชื่อผู้ใช้งาน (ID)"
+
+[node name="PasswordInput" type="LineEdit" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=1288436094]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_input")
+placeholder_text = "รหัสผ่าน (Password)"
+secret = true
+
+[node name="LoginButton" type="Button" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=128032082]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
+text = "เข้าสู่ระบบ"
+
+[node name="RegisterButton" type="Button" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=1229681299]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.78, 0.25, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_alt")
+text = "สมัครสมาชิก"
+
+[node name="StatusLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=39956942]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="RegisterView" type="VBoxContainer" parent="CenterContainer/MainPanel/MarginContainer" unique_id=884745895]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel2" type="Label" parent="CenterContainer/MainPanel/MarginContainer/RegisterView" unique_id=455321353]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.78, 0.25, 1)
+theme_override_font_sizes/font_size = 19
+text = "📝 สมัครสมาชิกใหม่"
+horizontal_alignment = 1
+
+[node name="HSeparator2" type="HSeparator" parent="CenterContainer/MainPanel/MarginContainer/RegisterView" unique_id=2097006732]
+layout_mode = 2
+
+[node name="IDInput" type="LineEdit" parent="CenterContainer/MainPanel/MarginContainer/RegisterView" unique_id=373401556]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_input")
+placeholder_text = "กำหนดชื่อผู้ใช้งาน (ID)"
+
+[node name="PasswordInput" type="LineEdit" parent="CenterContainer/MainPanel/MarginContainer/RegisterView" unique_id=363808375]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_input")
+placeholder_text = "กำหนดรหัสผ่าน"
+secret = true
+
+[node name="EmailInput" type="LineEdit" parent="CenterContainer/MainPanel/MarginContainer/RegisterView" unique_id=173678950]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_input")
+placeholder_text = "อีเมลของคุณ (Email)"
+
+[node name="RegisterButton" type="Button" parent="CenterContainer/MainPanel/MarginContainer/RegisterView" unique_id=850133218]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
+text = "ยืนยันการสมัคร"
+
+[node name="BackButton" type="Button" parent="CenterContainer/MainPanel/MarginContainer/RegisterView" unique_id=1619523077]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.78, 0.25, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_alt")
+text = "ย้อนกลับ"
+
+[node name="StatusLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/RegisterView" unique_id=381999644]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 3

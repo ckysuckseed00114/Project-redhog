@@ -1,0 +1,316 @@
+[gd_scene format=3 uid="uid://wxwwphcvn07d"]
+
+[ext_resource type="Script" uid="uid://dnog0xdsufd7n" path="res://scripts/characters/big_monster.gd" id="1_ehwwt"]
+[ext_resource type="Texture2D" uid="uid://bv4lp35k47nih" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_000.png" id="2_8py1w"]
+[ext_resource type="Texture2D" uid="uid://ccurodbv3nl8i" path="res://animation/monster/Ogre/PNG/PNG Sequences/Slashing/0_Ogre_Slashing_000.png" id="2_evq5r"]
+[ext_resource type="Texture2D" uid="uid://mrtrv27vce4y" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_000.png" id="2_yix41"]
+[ext_resource type="Texture2D" uid="uid://c5pmitair4gc3" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_001.png" id="3_6754h"]
+[ext_resource type="Texture2D" uid="uid://c2gd0drhhrke1" path="res://animation/monster/Ogre/PNG/PNG Sequences/Slashing/0_Ogre_Slashing_001.png" id="3_duo8u"]
+[ext_resource type="Texture2D" uid="uid://bd1h7mbjudufp" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_001.png" id="3_kruly"]
+[ext_resource type="Texture2D" uid="uid://16dwdpsnpgdk" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_002.png" id="4_o7nju"]
+[ext_resource type="Texture2D" uid="uid://cx1vopat224v6" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_002.png" id="4_s87xj"]
+[ext_resource type="Texture2D" uid="uid://1stpk1vgage8" path="res://animation/monster/Ogre/PNG/PNG Sequences/Slashing/0_Ogre_Slashing_002.png" id="4_uwdk4"]
+[ext_resource type="Texture2D" uid="uid://dand4gbc2pkwi" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_003.png" id="5_lnxgr"]
+[ext_resource type="Texture2D" uid="uid://2m0q1skhaxxt" path="res://animation/monster/Ogre/PNG/PNG Sequences/Slashing/0_Ogre_Slashing_003.png" id="5_m1hxb"]
+[ext_resource type="Texture2D" uid="uid://dedj278kv56h4" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_003.png" id="5_olfcc"]
+[ext_resource type="Texture2D" uid="uid://c0txy1qc4svtq" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_004.png" id="6_7rcfv"]
+[ext_resource type="Texture2D" uid="uid://buwibqnbjaib1" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_004.png" id="6_qa3xa"]
+[ext_resource type="Texture2D" uid="uid://7geau8pfuq0t" path="res://animation/monster/Ogre/PNG/PNG Sequences/Slashing/0_Ogre_Slashing_004.png" id="6_r7rrc"]
+[ext_resource type="Texture2D" uid="uid://i00osc2mg0jh" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_005.png" id="7_d8lej"]
+[ext_resource type="Texture2D" uid="uid://d2g18c5q7rxt0" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_005.png" id="7_lfd3r"]
+[ext_resource type="Texture2D" uid="uid://dnrjtp12quaui" path="res://animation/monster/Ogre/PNG/PNG Sequences/Slashing/0_Ogre_Slashing_005.png" id="7_w8t01"]
+[ext_resource type="Texture2D" uid="uid://c5musgvctq0v" path="res://animation/monster/Ogre/PNG/PNG Sequences/Slashing/0_Ogre_Slashing_006.png" id="8_bnrqr"]
+[ext_resource type="Texture2D" uid="uid://ctcgv5oqij7o1" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_006.png" id="8_gn2ly"]
+[ext_resource type="Texture2D" uid="uid://b4tfn66mea5l4" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_006.png" id="8_kousa"]
+[ext_resource type="Texture2D" uid="uid://bfy0pgdvqtgnh" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_007.png" id="9_4wjbe"]
+[ext_resource type="Texture2D" uid="uid://18ecg5mftl37" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_007.png" id="9_31daa"]
+[ext_resource type="Texture2D" uid="uid://diekjxpuvqxkr" path="res://animation/monster/Ogre/PNG/PNG Sequences/Slashing/0_Ogre_Slashing_007.png" id="9_e1dut"]
+[ext_resource type="Texture2D" uid="uid://dntq70swrnkqe" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_008.png" id="10_6l5fq"]
+[ext_resource type="Texture2D" uid="uid://c3vy3aarhe78u" path="res://animation/monster/Ogre/PNG/PNG Sequences/Slashing/0_Ogre_Slashing_008.png" id="10_8h77y"]
+[ext_resource type="Texture2D" uid="uid://6p35042le2xm" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_008.png" id="10_24qoo"]
+[ext_resource type="Texture2D" uid="uid://4uflyg7yw7ce" path="res://animation/monster/Ogre/PNG/PNG Sequences/Slashing/0_Ogre_Slashing_009.png" id="11_ayar1"]
+[ext_resource type="Texture2D" uid="uid://cp4fgijuk8tub" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_009.png" id="11_cwe4v"]
+[ext_resource type="Texture2D" uid="uid://dfi63kn86js65" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_009.png" id="11_yaj2i"]
+[ext_resource type="Texture2D" uid="uid://djmf2w47dkndd" path="res://animation/monster/Ogre/PNG/PNG Sequences/Slashing/0_Ogre_Slashing_010.png" id="12_qdq5v"]
+[ext_resource type="Texture2D" uid="uid://b4yewn5p80jd8" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_010.png" id="12_v8d6m"]
+[ext_resource type="Texture2D" uid="uid://d1x6u14do1dll" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_010.png" id="12_xntj6"]
+[ext_resource type="Texture2D" uid="uid://bw7gywpqah2oc" path="res://animation/monster/Ogre/PNG/PNG Sequences/Slashing/0_Ogre_Slashing_011.png" id="13_730q6"]
+[ext_resource type="Texture2D" uid="uid://s6f8kno5ick8" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_011.png" id="13_kxtfq"]
+[ext_resource type="Texture2D" uid="uid://ckw3i05oj1wot" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_011.png" id="13_yeenj"]
+[ext_resource type="Texture2D" uid="uid://1kjr8g4tt5vo" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_012.png" id="14_3kdf3"]
+[ext_resource type="Texture2D" uid="uid://drjotkpba5ugf" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_012.png" id="14_3rkw2"]
+[ext_resource type="Texture2D" uid="uid://cbryri860jyh6" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_013.png" id="15_7grbc"]
+[ext_resource type="Texture2D" uid="uid://bdnbajnjbtnt4" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_013.png" id="15_sp1a6"]
+[ext_resource type="Texture2D" uid="uid://b3yonrqyt840g" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_014.png" id="16_8py1w"]
+[ext_resource type="Texture2D" uid="uid://bssd4ms6m8tx3" path="res://animation/monster/Ogre/PNG/PNG Sequences/Dying/0_Ogre_Dying_014.png" id="16_jsrv4"]
+[ext_resource type="Texture2D" uid="uid://bynn0u36d18f7" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_015.png" id="17_6754h"]
+[ext_resource type="Texture2D" uid="uid://yqf6k024ucpx" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_016.png" id="18_o7nju"]
+[ext_resource type="Texture2D" uid="uid://bgsaun2wyqpsm" path="res://animation/monster/Ogre/PNG/PNG Sequences/Idle/0_Ogre_Idle_017.png" id="19_lnxgr"]
+[ext_resource type="Texture2D" uid="uid://cefkseoxon2h7" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_000.png" id="47_8ba7q"]
+[ext_resource type="Texture2D" uid="uid://cpi4meipaajw3" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_001.png" id="48_ug6yd"]
+[ext_resource type="Texture2D" uid="uid://dusx5t3nusd2c" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_002.png" id="49_hyk6c"]
+[ext_resource type="Texture2D" uid="uid://bmwqhnmb16kho" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_003.png" id="50_p4vdk"]
+[ext_resource type="Texture2D" uid="uid://cqbd5cv04wrle" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_004.png" id="51_dmg2x"]
+[ext_resource type="Texture2D" uid="uid://cn1thh6qekvqu" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_005.png" id="52_0sld2"]
+[ext_resource type="Texture2D" uid="uid://bhmbh2s1178x1" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_006.png" id="53_deunb"]
+[ext_resource type="Texture2D" uid="uid://cde2b54go411c" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_007.png" id="54_1nrpr"]
+[ext_resource type="Texture2D" uid="uid://542uq7krm32t" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_008.png" id="55_oaesf"]
+[ext_resource type="Texture2D" uid="uid://dtbf80gld2lp7" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_009.png" id="56_hm0un"]
+[ext_resource type="Texture2D" uid="uid://dvbu0dia4tg6s" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_010.png" id="57_naurq"]
+[ext_resource type="Texture2D" uid="uid://khj5ihiswcxt" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_011.png" id="58_wwksj"]
+[ext_resource type="Texture2D" uid="uid://grgimt8px0pg" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_012.png" id="59_2p5xi"]
+[ext_resource type="Texture2D" uid="uid://c6h170yitea78" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_013.png" id="60_6r42n"]
+[ext_resource type="Texture2D" uid="uid://brxlp5r7qg07h" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_014.png" id="61_wbtdu"]
+[ext_resource type="Texture2D" uid="uid://cbnwghsc43t4g" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_015.png" id="62_cmnwe"]
+[ext_resource type="Texture2D" uid="uid://dfue2s0s6n0xn" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_016.png" id="63_kp6g1"]
+[ext_resource type="Texture2D" uid="uid://du8jp3smd0vk0" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_017.png" id="64_4flr5"]
+[ext_resource type="Texture2D" uid="uid://cgc3ru3d6uwia" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_018.png" id="65_fv40i"]
+[ext_resource type="Texture2D" uid="uid://dh8vxox1akj7q" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_019.png" id="66_7rlo7"]
+[ext_resource type="Texture2D" uid="uid://cgmkxehtjxyoa" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_020.png" id="67_ymeim"]
+[ext_resource type="Texture2D" uid="uid://ddl58odqpkkba" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_021.png" id="68_t7rgg"]
+[ext_resource type="Texture2D" uid="uid://3fehq1anrq85" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_022.png" id="69_fc6g1"]
+[ext_resource type="Texture2D" uid="uid://csw68yp1fw6ec" path="res://animation/monster/Ogre/PNG/PNG Sequences/Walking/0_Ogre_Walking_023.png" id="70_1eo6y"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_xeyld"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_evq5r")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_duo8u")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_uwdk4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_m1hxb")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_r7rrc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_w8t01")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_bnrqr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_e1dut")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_8h77y")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_ayar1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_qdq5v")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13_730q6")
+}],
+"loop": 1,
+"name": &"attack",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_8py1w")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_6754h")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_o7nju")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_lnxgr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_7rcfv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_d8lej")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_gn2ly")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_31daa")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_6l5fq")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_cwe4v")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_xntj6")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13_kxtfq")
+}, {
+"duration": 1.0,
+"texture": ExtResource("14_3kdf3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("15_7grbc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("16_jsrv4")
+}],
+"loop": 0,
+"name": &"dying",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_yix41")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_kruly")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_s87xj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_olfcc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_qa3xa")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_lfd3r")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_kousa")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_4wjbe")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_24qoo")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_yaj2i")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_v8d6m")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13_yeenj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("14_3rkw2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("15_sp1a6")
+}, {
+"duration": 1.0,
+"texture": ExtResource("16_8py1w")
+}, {
+"duration": 1.0,
+"texture": ExtResource("17_6754h")
+}, {
+"duration": 1.0,
+"texture": ExtResource("18_o7nju")
+}, {
+"duration": 1.0,
+"texture": ExtResource("19_lnxgr")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("47_8ba7q")
+}, {
+"duration": 1.0,
+"texture": ExtResource("48_ug6yd")
+}, {
+"duration": 1.0,
+"texture": ExtResource("49_hyk6c")
+}, {
+"duration": 1.0,
+"texture": ExtResource("50_p4vdk")
+}, {
+"duration": 1.0,
+"texture": ExtResource("51_dmg2x")
+}, {
+"duration": 1.0,
+"texture": ExtResource("52_0sld2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("53_deunb")
+}, {
+"duration": 1.0,
+"texture": ExtResource("54_1nrpr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("55_oaesf")
+}, {
+"duration": 1.0,
+"texture": ExtResource("56_hm0un")
+}, {
+"duration": 1.0,
+"texture": ExtResource("57_naurq")
+}, {
+"duration": 1.0,
+"texture": ExtResource("58_wwksj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("59_2p5xi")
+}, {
+"duration": 1.0,
+"texture": ExtResource("60_6r42n")
+}, {
+"duration": 1.0,
+"texture": ExtResource("61_wbtdu")
+}, {
+"duration": 1.0,
+"texture": ExtResource("62_cmnwe")
+}, {
+"duration": 1.0,
+"texture": ExtResource("63_kp6g1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("64_4flr5")
+}, {
+"duration": 1.0,
+"texture": ExtResource("65_fv40i")
+}, {
+"duration": 1.0,
+"texture": ExtResource("66_7rlo7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("67_ymeim")
+}, {
+"duration": 1.0,
+"texture": ExtResource("68_t7rgg")
+}, {
+"duration": 1.0,
+"texture": ExtResource("69_fc6g1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("70_1eo6y")
+}],
+"loop": 1,
+"name": &"walking",
+"speed": 10.0
+}]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_abi3o"]
+radius = 16.0
+
+[node name="BigPoring" type="CharacterBody2D" unique_id=971337245]
+script = ExtResource("1_ehwwt")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=426277846]
+scale = Vector2(0.05, 0.06)
+sprite_frames = SubResource("SpriteFrames_xeyld")
+animation = &"walking"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1737518771]
+shape = SubResource("CircleShape2D_abi3o")

@@ -1,0 +1,27 @@
+---
+description: ใช้ Supabase MCP เมื่อช่วยดูแล schema, RLS, SQL migration
+alwaysApply: false
+---
+
+# Supabase MCP (โปรเจกต์ REDHOG / redhog)
+
+- Project ref: `hfewlpkkflvahpcqoubr`
+- Dashboard: โปรเจกต์ **redhog** → schema `public`
+- ตาราง: `players`, `player_equipment`, `player_inventory`
+- Config: `.cursor/mcp.json` (scoped + read_only)
+
+## เปิดใช้ใน Cursor
+
+1. **Cursor Settings** → **Tools & MCP**
+2. เปิด server **supabase** (จาก `.cursor/mcp.json`)
+3. กด **Authenticate** / Login ผ่าน browser → เลือก org ที่มีโปรเจกต์ redhog
+4. Restart Cursor ถ้ายังไม่เห็น tools
+
+## ทดสอบ
+
+ถามใน Chat: *"ใช้ MCP list tables ใน Supabase"* หรือ *"ดู RLS ของ player_equipment"*
+
+## หมายเหตุ
+
+- `read_only=true` — ปลอดภัยกับ PRODUCTION (ดู/query ได้ แก้ schema ผ่าน MCP ไม่ได้)
+- ถ้าต้องการให้ AI รัน migration ชั่วคราว เอา `read_only=true` ออกจาก URL (ใช้กับ dev branch แนะนำมากกว่า prod)

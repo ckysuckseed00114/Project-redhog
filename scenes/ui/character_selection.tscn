@@ -1,0 +1,105 @@
+[gd_scene format=3 uid="uid://ko0uqav3y73l"]
+
+[ext_resource type="Script" uid="uid://dv6xlqyickb14" path="res://scripts/ui/character_selection.gd" id="1_wk3ts"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.0666667, 0.054902, 0.054902, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.85098, 0.682353, 0.2, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0, 0, 0, 0.8)
+shadow_size = 20
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_list"]
+bg_color = Color(0.121569, 0.0980392, 0.0980392, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.28, 0.2, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_alt"]
+bg_color = Color(0.18, 0.14, 0.14, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.85098, 0.682353, 0.2, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="CharacterSelection" type="Control" unique_id=681168119]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_wk3ts")
+
+[node name="Background" type="ColorRect" parent="." unique_id=675186785]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.02, 0.02, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=76448394]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MainPanel" type="PanelContainer" parent="CenterContainer" unique_id=1592795485]
+custom_minimum_size = Vector2(440, 420)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/MainPanel" unique_id=1073835791]
+layout_mode = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/MainPanel/MarginContainer" unique_id=1085651446]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=1372627052]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.78, 0.25, 1)
+theme_override_font_sizes/font_size = 22
+text = "🛡️ เลือกตัวละครของคุณ"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=1428216477]
+layout_mode = 2
+
+[node name="ItemList" type="ItemList" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=1403281003]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_list")
+
+[node name="BackButton" type="Button" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=133981181]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.78, 0.25, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_alt")
+text = "กลับสู่หน้าเข้าสู่ระบบ"

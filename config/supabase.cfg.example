@@ -1,0 +1,4 @@
+[supabase]
+url="https://YOUR_PROJECT.supabase.co/rest/v1/"
+auth_url="https://YOUR_PROJECT.supabase.co/auth/v1/"
+anon_key="YOUR_SUPABASE_ANON_KEY"

@@ -1,0 +1,154 @@
+[gd_scene format=3 uid="uid://b5cdqedu7wjq5"]
+
+[ext_resource type="Script" uid="uid://btey8p8xwki7c" path="res://scripts/ui/charactercreation.gd" id="1_1y33a"]
+[ext_resource type="Texture2D" uid="uid://btck0mumhk8ns" path="res://animation/player/male/PNG/PNG Sequences/Idle/0_Fallen_Angels_Idle_000.png" id="2_p4177"]
+[ext_resource type="Texture2D" uid="uid://bt4krssqhkfbp" path="res://animation/player/female/PNG/PNG Sequences/Idle/0_Fallen_Angels_Idle_000.png" id="3_wre3l"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.0666667, 0.054902, 0.054902, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.85098, 0.682353, 0.2, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0, 0, 0, 0.8)
+shadow_size = 20
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input"]
+content_margin_left = 14.0
+content_margin_right = 14.0
+bg_color = Color(0.121569, 0.0980392, 0.0980392, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.28, 0.2, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn"]
+bg_color = Color(0.75, 0.12, 0.12, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_alt"]
+bg_color = Color(0.18, 0.14, 0.14, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.85098, 0.682353, 0.2, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="charactercreation" type="Control" unique_id=439894336]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_1y33a")
+
+[node name="Background" type="ColorRect" parent="." unique_id=581359215]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.02, 0.02, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=1748593896]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 25.0
+offset_top = -64.0
+offset_right = -35.0
+offset_bottom = 76.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MainPanel" type="PanelContainer" parent="CenterContainer" unique_id=1968689815]
+custom_minimum_size = Vector2(420, 410)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/MainPanel" unique_id=1829561300]
+layout_mode = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/MainPanel/MarginContainer" unique_id=262340331]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=179894756]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.78, 0.25, 1)
+theme_override_font_sizes/font_size = 22
+text = "⚔️ เลือกตัวละครและตั้งชื่อ"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=242995139]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=635237520]
+layout_mode = 2
+alignment = 1
+
+[node name="malebutton" type="TextureButton" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer/HBoxContainer" unique_id=318998531]
+custom_minimum_size = Vector2(70, 70)
+layout_mode = 2
+texture_normal = ExtResource("2_p4177")
+ignore_texture_size = true
+stretch_mode = 5
+
+[node name="Control" type="Control" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer/HBoxContainer" unique_id=1228113387]
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
+
+[node name="femalebutton" type="TextureButton" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer/HBoxContainer" unique_id=492038028]
+custom_minimum_size = Vector2(70, 70)
+layout_mode = 2
+texture_normal = ExtResource("3_wre3l")
+ignore_texture_size = true
+stretch_mode = 5
+
+[node name="lineedit" type="LineEdit" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=1315075937]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_input")
+placeholder_text = "กรอกชื่อตัวละครที่นี่..."
+alignment = 1
+
+[node name="button" type="Button" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=568264407]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
+text = "เริ่มเกมการผจญภัย"
+
+[node name="BackButton" type="Button" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=987654321]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.78, 0.25, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_alt")
+text = "ย้อนกลับไปหน้าเลือกตัวละคร"
+
+[node name="StatusLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=1967417234]
+layout_mode = 2
+horizontal_alignment = 1

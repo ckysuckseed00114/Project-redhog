@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://j3jdh55wn3l2"]
+
+[ext_resource type="Script" uid="uid://dv355t6w3jclx" path="res://scripts/world/portal.gd" id="1_v0xau"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_jyhfs"]
+size = Vector2(32, 29)
+
+[node name="Portal" type="Area2D" unique_id=1734662257]
+script = ExtResource("1_v0xau")
+target_scene = ""
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=781382141]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=969987933]
+position = Vector2(0, 1)
+shape = SubResource("RectangleShape2D_jyhfs")
