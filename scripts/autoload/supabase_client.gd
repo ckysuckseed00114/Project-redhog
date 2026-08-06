@@ -539,19 +539,29 @@ func _fetch_data_http(url: String, auth_token: String, callback: Callable) -> vo
 	http.request(url, headers, HTTPClient.METHOD_GET)
 
 
+var _js_bridge_initialized := false
+
+func _init_web_bridge() -> void:
+	if _js_bridge_initialized:
+		return
+	_js_bridge_initialized = true
+	var cb := JavaScriptBridge.create_callback(func(args: Array) -> void:
+		if args.size() < 3:
+			return
+		var fetch_id := int(args[0])
+		var status := int(args[1])
+		var body_text := str(args[2])
+		_finish_web_fetch_by_id(fetch_id, status, body_text)
+	)
+	var window := JavaScriptBridge.get_interface("window")
+	window._godot_fetch_dispatcher = cb
+
+
 func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> void:
+	_init_web_bridge()
 	_web_fetch_seq += 1
 	var fetch_id := _web_fetch_seq
 	_web_fetch_pending[fetch_id] = callback
-
-	var js_cb := JavaScriptBridge.create_callback(func(args: Array) -> void:
-		_finish_web_fetch(fetch_id, args)
-	)
-
-	# 🌟 เอา callback ไปแปะไว้ที่ window โดยตรง ป้องกันปัญหากลุ่มตัวแปรสโคปปิดกั้น
-	var window = JavaScriptBridge.get_interface("window")
-	var cb_name = "_godot_fetch_cb_" + str(fetch_id)
-	window[cb_name] = js_cb
 
 	var js := """
 	(function() {
@@ -564,24 +574,18 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 			}
 		}).then(function(r) {
 			return r.text().then(function(t) {
-				return JSON.stringify({ status: r.status, body: t });
+				window._godot_fetch_dispatcher(%d, r.status, t);
 			});
-		}).then(function(payloadStr) {
-			window['%s']([payloadStr]);
-			delete window['%s'];
 		}).catch(function(e) {
-			window['%s']([JSON.stringify({ status: 0, body: String(e) })]);
-			delete window['%s'];
+			window._godot_fetch_dispatcher(%d, 0, String(e));
 		});
 	})();
 	""" % [
 		JSON.stringify(url),
 		JSON.stringify(SupabaseConfig.anon_key),
 		JSON.stringify(auth_token),
-		cb_name,
-		cb_name,
-		cb_name,
-		cb_name,
+		fetch_id,
+		fetch_id,
 	]
 	JavaScriptBridge.eval(js)
 
@@ -590,16 +594,26 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 		if not _web_fetch_pending.has(fetch_id):
 			return
 		print("[WebFetch] JS timeout — fallback HTTPRequest")
-		
-		# 🛠️ เปลี่ยนมาใช้ if-else แบบปกติเพื่อแก้ปัญหา Standalone Ternary
-		if window.has(cb_name):
-			window.delete(cb_name)
-			
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
 		if pending.is_valid():
 			_fetch_data_http(url, auth_token, pending)
 	, CONNECT_ONE_SHOT)
+
+
+func _finish_web_fetch_by_id(fetch_id: int, status: int, body_text: String) -> void:
+	if not _web_fetch_pending.has(fetch_id):
+		return
+	var callback: Callable = _web_fetch_pending[fetch_id]
+	_web_fetch_pending.erase(fetch_id)
+	if not callback.is_valid():
+		return
+	var body_json := JSON.new()
+	body_json.parse(body_text)
+	var rows := normalize_rows(body_json.get_data())
+	var ok := status >= 200 and status < 300
+	print("[WebFetch] status=", status, " rows=", rows.size())
+	callback.call(ok, rows)
 
 func _finish_web_fetch(fetch_id: int, args: Array) -> void:
 	if not _web_fetch_pending.has(fetch_id):
