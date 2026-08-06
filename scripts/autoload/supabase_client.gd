@@ -550,98 +550,82 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 	_web_fetch_pending[fetch_id] = callback
 
 	var js_cb := JavaScriptBridge.create_callback(func(args: Array) -> void:
-		_web_fetch_callbacks.erase(fetch_id) # 🌟 เคลียร์ Callback ทิ้งเมื่อใช้งานเสร็จ
-		
 		if not _web_fetch_pending.has(fetch_id):
 			return
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
-		
-		var win: JavaScriptObject = JavaScriptBridge.get_interface("window")
-		if win:
-			win.eval("delete window._fetch_cb_" + str(fetch_id))
-			
+		_web_fetch_callbacks.erase(fetch_id)
+
 		if not pending.is_valid() or args.is_empty():
-			pending.call(false, [])
+			if pending.is_valid():
+				pending.call(false, [])
 			return
-			
+
 		var packet_json := JSON.new()
 		if packet_json.parse(str(args[0])) != OK:
 			pending.call(false, [])
 			return
-			
+
 		var raw_packet: Variant = packet_json.get_data()
 		if not raw_packet is Dictionary:
 			pending.call(false, [])
 			return
-			
+
 		var packet: Dictionary = raw_packet
 		var status: int = int(packet.get("status", 0))
 		var body_text: String = str(packet.get("body", ""))
-		
+
 		var body_json := JSON.new()
 		body_json.parse(body_text)
 		var rows: Array = normalize_rows(body_json.get_data())
 		var ok: bool = status >= 200 and status < 300
-		
+
 		print("[BrowserFetch] status=", status, " rows=", rows.size())
 		pending.call(ok, rows)
 	)
 
-	# 🌟🌟🌟 สำคัญมาก: เก็บอ้างอิงไว้ในระดับ Class ไม่ให้ Godot ลบทิ้งระหว่างรอ!
-	_web_fetch_callbacks[fetch_id] = js_cb 
+	# ต้องเก็บ reference ไว้จน callback ถูกเรียก (Godot จะ GC ทิ้งถ้าไม่เก็บ)
+	_web_fetch_callbacks[fetch_id] = js_cb
 
-	var window: JavaScriptObject = JavaScriptBridge.get_interface("window")
-	var cb_prop_name: String = "_fetch_cb_" + str(fetch_id)
-	window[cb_prop_name] = js_cb
-
+	# ใช้ %s([payload]) ใน eval โดยตรง — pattern ที่ Godot 4.2 รองรับ (ไม่ใช่ window.xxx(payload))
 	var js := """
 	(function() {
-		console.log("[JS Fetch] กำลังยิงไปที่:", %s);
 		fetch(%s, {
 			method: 'GET',
 			headers: {
 				'apikey': %s,
-				'Authorization': %s, 
+				'Authorization': %s,
 				'Accept': 'application/json'
 			}
 		}).then(function(r) {
-			console.log("[JS Fetch] ตอบกลับ Status:", r.status);
 			return r.text().then(function(t) {
-				console.log("[JS Fetch] Body ยาว:", t.length);
 				var payload = JSON.stringify({ status: r.status, body: t });
-				if (window.%s) { window.%s(payload); }
+				%s([payload]);
 			});
 		}).catch(function(e) {
-			console.error("[JS Fetch] Error:", e);
-			if (window.%s) { window.%s(JSON.stringify({ status: 0, body: String(e) })); }
+			%s([JSON.stringify({ status: 0, body: String(e) })]);
 		});
 	})();
 	""" % [
 		JSON.stringify(url),
-		JSON.stringify(url),
 		JSON.stringify(SupabaseConfig.anon_key),
 		JSON.stringify("Bearer " + auth_token),
-		cb_prop_name,
-		cb_prop_name,
-		cb_prop_name,
-		cb_prop_name,
+		js_cb,
+		js_cb,
 	]
-	
+
 	print("[BrowserFetch] start url=", url)
 	JavaScriptBridge.eval(js)
 
-	get_tree().create_timer(8.0).timeout.connect(func() -> void:
-		_web_fetch_callbacks.erase(fetch_id) # 🌟 เคลียร์อ้างอิงทิ้งหากเกิด Timeout
+	get_tree().create_timer(15.0).timeout.connect(func() -> void:
+		_web_fetch_callbacks.erase(fetch_id)
 		if not _web_fetch_pending.has(fetch_id):
 			return
-		print("[BrowserFetch] timeout — fallback HTTPRequest")
-		if window:
-			window.eval("delete window." + cb_prop_name)
+		print("[BrowserFetch] timeout — JS callback ไม่ตอบ")
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
 		if pending.is_valid():
-			_fetch_data_http(url, auth_token, pending)
+			pending.call(false, [])
 	, CONNECT_ONE_SHOT)
 
 func update_data(table: String, query: String, data: Dictionary, callback: Callable = Callable()) -> void:
