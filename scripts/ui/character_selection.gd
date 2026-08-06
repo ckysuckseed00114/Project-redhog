@@ -22,7 +22,7 @@ func _ready() -> void:
 	center_container = $CenterContainer
 	_init_ui_layout()
 	_set_status("กำลังโหลดตัวละคร...")
-	get_tree().create_timer(12.0).timeout.connect(_on_load_timeout, CONNECT_ONE_SHOT)
+	get_tree().create_timer(20.0).timeout.connect(_on_load_timeout, CONNECT_ONE_SHOT)
 	call_deferred("_load_characters")
 
 

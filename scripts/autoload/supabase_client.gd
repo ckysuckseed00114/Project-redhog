@@ -570,23 +570,37 @@ func _fetch_data_http(url: String, auth_token: String, callback: Callable) -> vo
 func _ensure_web_fetch_helper() -> void:
 	if _web_fetch_helper_ready:
 		return
-	JavaScriptBridge.eval(WEB_FETCH_HELPER_JS)
+	JavaScriptBridge.eval(WEB_FETCH_HELPER_JS, true)
 	_web_fetch_helper_ready = true
 
 
 func _poll_web_fetch_results() -> void:
-	var drained: Variant = JavaScriptBridge.eval(
-		"(function(){ if(!window.__godot_fetch_results||!window.__godot_fetch_results.length) return []; return window.__godot_fetch_results.splice(0); })()"
-	)
-	if not drained is Array:
-		return
-	for raw_item in drained:
-		if not raw_item is Dictionary:
+	while not _web_fetch_pending.is_empty():
+		var raw_json: String = str(JavaScriptBridge.eval(
+			"(function(){"
+			+ "if(!window.__godot_fetch_results||!window.__godot_fetch_results.length)return '';"
+			+ "return JSON.stringify(window.__godot_fetch_results.shift());"
+			+ "})()",
+			true
+		))
+		if raw_json.is_empty() or raw_json == "null":
+			break
+
+		var packet_json := JSON.new()
+		if packet_json.parse(raw_json) != OK:
+			print("[BrowserFetch] queue parse fail: ", raw_json.left(120))
+			break
+
+		var item: Variant = packet_json.get_data()
+		if not item is Dictionary:
+			print("[BrowserFetch] queue item not dict: ", typeof(item))
 			continue
-		var item: Dictionary = raw_item
-		var fetch_id: int = int(item.get("id", 0))
+
+		var fetch_id: int = int(item.get("id", -1))
 		if not _web_fetch_pending.has(fetch_id):
+			print("[BrowserFetch] orphan result id=", fetch_id)
 			continue
+
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
 
@@ -596,7 +610,7 @@ func _poll_web_fetch_results() -> void:
 		body_json.parse(body_text)
 		var rows: Array = normalize_rows(body_json.get_data())
 		var ok: bool = status >= 200 and status < 300
-		print("[BrowserFetch] status=", status, " rows=", rows.size())
+		print("[BrowserFetch] status=", status, " rows=", rows.size(), " id=", fetch_id)
 		if pending.is_valid():
 			pending.call(ok, rows)
 
@@ -609,14 +623,8 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 	_web_fetch_pending[fetch_id] = callback
 
 	print("[BrowserFetch] start id=", fetch_id, " url=", url)
-	JavaScriptBridge.eval(
-		"window.__godotRestGet(%s, %s, %s, %d)" % [
-			JSON.stringify(url),
-			JSON.stringify(SupabaseConfig.anon_key),
-			JSON.stringify("Bearer " + auth_token),
-			fetch_id,
-		]
-	)
+	var window_obj: JavaScriptObject = JavaScriptBridge.get_interface("window")
+	window_obj.call("__godotRestGet", url, SupabaseConfig.anon_key, "Bearer " + auth_token, fetch_id)
 
 	get_tree().create_timer(15.0).timeout.connect(func() -> void:
 		if not _web_fetch_pending.has(fetch_id):
