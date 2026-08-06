@@ -572,9 +572,9 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 	var fetch_id := _web_fetch_seq
 	_web_fetch_pending[fetch_id] = callback
 
-	# 🌟 ห่อข้อมูลทุกอย่างเป็น JSON string ก่อนส่งเข้า Godot ผ่าน callback ตัวเดียว
 	var js := """
 	(function() {
+		console.log("[JS Fetch] กำลังยิงไปที่ URL:", %s);
 		fetch(%s, {
 			method: 'GET',
 			headers: {
@@ -583,16 +583,20 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 				'Accept': 'application/json'
 			}
 		}).then(function(r) {
+			console.log("[JS Fetch] สำเร็จ! Status:", r.status);
 			return r.text().then(function(t) {
+				console.log("[JS Fetch] Body ยาว:", t.length);
 				var packet = JSON.stringify({ id: %d, status: r.status, body: t });
 				window._godot_fetch_dispatcher(packet);
 			});
 		}).catch(function(e) {
+			console.error("[JS Fetch] เกิดข้อผิดพลาด:", e);
 			var packet = JSON.stringify({ id: %d, status: 0, body: String(e) });
 			window._godot_fetch_dispatcher(packet);
 		});
 	})();
 	""" % [
+		JSON.stringify(url),
 		JSON.stringify(url),
 		JSON.stringify(SupabaseConfig.anon_key),
 		JSON.stringify(auth_token),
@@ -601,16 +605,16 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 	]
 	JavaScriptBridge.eval(js)
 
-	# เพิ่มเวลา Timer รอเป็น 10 วินาที ป้องกันเน็ตช้า
 	var timer := get_tree().create_timer(10.0)
 	timer.timeout.connect(func() -> void:
 		if not _web_fetch_pending.has(fetch_id):
 			return
-		print("[WebFetch] JS timeout — fallback HTTPRequest")
+		print("[WebFetch] JS timeout — ชะตากรรมขาดลอย")
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
 		if pending.is_valid():
-			_fetch_data_http(url, auth_token, pending)
+			# ปิดการเรียก HTTPRequest ซ้ำซ้อนบนเว็บเพื่อกัน HTTP result 8
+			pending.call(false, [])
 	, CONNECT_ONE_SHOT)
 
 
