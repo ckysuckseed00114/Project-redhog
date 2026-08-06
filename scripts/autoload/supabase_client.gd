@@ -493,6 +493,11 @@ func fetch_data(table_name: String, query_params: String = "", callback: Callabl
 	SupabaseConfig.ensure_loaded()
 	var url = SupabaseConfig.url + table_name + ("?" + query_params if query_params != "" else "")
 	var auth_token = current_access_token if current_access_token != "" else SupabaseConfig.anon_key
+
+	if OS.has_feature("web"):
+		_fetch_data_web(url, auth_token, callback)
+		return
+
 	var headers = PackedStringArray([
 		"apikey: " + SupabaseConfig.anon_key,
 		"Authorization: Bearer " + auth_token,
@@ -520,6 +525,62 @@ func fetch_data(table_name: String, query_params: String = "", callback: Callabl
 				callback.call(false, rows)
 	)
 	http.request(url, headers, HTTPClient.METHOD_GET)
+
+
+func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> void:
+	var anon_key := SupabaseConfig.anon_key
+	var js_cb := JavaScriptBridge.create_callback(func(args: Array) -> void:
+		if not callback.is_valid():
+			return
+		if args.is_empty():
+			callback.call(false, [])
+			return
+		var envelope_json := JSON.new()
+		if envelope_json.parse(str(args[0])) != OK:
+			callback.call(false, [])
+			return
+		var envelope: Variant = envelope_json.get_data()
+		if not envelope is Dictionary:
+			callback.call(false, [])
+			return
+		var status := int(envelope.get("status", 0))
+		var body_text := str(envelope.get("body", ""))
+		var body_json := JSON.new()
+		body_json.parse(body_text)
+		var rows := normalize_rows(body_json.get_data())
+		var ok := status >= 200 and status < 300
+		if OS.is_debug_build():
+			print("[WebFetch] ", url, " status=", status, " rows=", rows.size(), " body=", body_text.left(120))
+		callback.call(ok, rows)
+	)
+
+	var js := """
+	(function() {
+		fetch(%s, {
+			method: 'GET',
+			headers: {
+				'apikey': %s,
+				'Authorization': 'Bearer ' + %s,
+				'Accept': 'application/json'
+			}
+		}).then(function(r) {
+			return r.text().then(function(t) {
+				return { status: r.status, body: t };
+			});
+		}).then(function(payload) {
+			%s([JSON.stringify(payload)]);
+		}).catch(function(e) {
+			%s([JSON.stringify({ status: 0, body: String(e) })]);
+		});
+	})();
+	""" % [
+		JSON.stringify(url),
+		JSON.stringify(anon_key),
+		JSON.stringify(auth_token),
+		js_cb,
+		js_cb,
+	]
+	JavaScriptBridge.eval(js)
 
 
 func update_data(table: String, query: String, data: Dictionary, callback: Callable = Callable()) -> void:

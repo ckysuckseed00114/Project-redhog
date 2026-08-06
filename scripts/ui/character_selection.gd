@@ -22,7 +22,7 @@ func _ready() -> void:
 	center_container = $CenterContainer
 	_init_ui_layout()
 	_set_status("กำลังโหลดตัวละคร...")
-	_load_characters()
+	call_deferred("_load_characters")
 
 
 func _init_ui_layout() -> void:
@@ -109,7 +109,7 @@ func _load_characters() -> void:
 	var user_id := SupabaseClient.current_user_id
 	_fetch_generation += 1
 	var fetch_gen := _fetch_generation
-	var query := "user_id=eq.%s&order=slot_index.asc" % user_id
+	var query := "user_id=eq.\"%s\"&order=slot_index.asc" % user_id
 
 	print("🚀 ดึงตัวละคร | User ID: ", user_id, " | token: ", SupabaseClient.current_access_token.length(), " chars")
 
@@ -131,7 +131,9 @@ func _load_characters() -> void:
 				return
 
 		_fetch_attempt = 0
-		if characters.is_empty():
+		if not success:
+			_set_status("โหลดตัวละครไม่สำเร็จ — ลองเข้าสู่ระบบใหม่", Color8(0xe7, 0x4c, 0x3c))
+		elif characters.is_empty():
 			_set_status("ยังไม่มีตัวละคร — กด + เพื่อสร้างใหม่")
 		else:
 			_set_status("พบ %d ตัวละคร" % characters.size(), Color8(0x2e, 0xcc, 0x71))
