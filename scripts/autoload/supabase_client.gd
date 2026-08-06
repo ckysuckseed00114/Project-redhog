@@ -135,30 +135,44 @@ func leave_channel(channel_name: String) -> void:
 		set_primary_channel(RealtimeChannel.GLOBAL)
 
 
+# เพิ่มส่วนนี้เข้าไปในคลาส เพื่อคอยดึงข้อมูลจาก JS queue ทุกเฟรม
 func _process(delta: float) -> void:
-	if _ws == null:
-		return
-	_ws.poll()
-	var state := _ws.get_ready_state()
-	if state == WebSocketPeer.STATE_OPEN:
-		if not _ws_was_open:
-			_ws_was_open = true
-			_flush_pending_channel_joins()
-		_heartbeat_timer += delta
-		if _heartbeat_timer >= HEARTBEAT_INTERVAL:
-			_heartbeat_timer = 0.0
-			_send_heartbeat()
-		while _ws.get_available_packet_count() > 0:
-			var packet := _ws.get_packet()
-			if _ws.was_string_packet():
-				_handle_ws_text(packet.get_string_from_utf8())
-			else:
-				_handle_ws_binary(packet)
-	elif state == WebSocketPeer.STATE_CLOSED:
-		var was_connected := _ws_was_open
-		_reset_realtime_state()
-		if was_connected and current_user_id != "":
-			call_deferred("connect_realtime")
+	# --- โค้ด WebSocket เดิมปล่อยไว้ตามเดิม ---
+	if _ws != null:
+		_ws.poll()
+		var state := _ws.get_ready_state()
+		if state == WebSocketPeer.STATE_OPEN:
+			if not _ws_was_open:
+				_ws_was_open = true
+				_flush_pending_channel_joins()
+			_heartbeat_timer += delta
+			if _heartbeat_timer >= HEARTBEAT_INTERVAL:
+				_heartbeat_timer = 0.0
+				_send_heartbeat()
+			while _ws.get_available_packet_count() > 0:
+				var packet := _ws.get_packet()
+				if _ws.was_string_packet():
+					_handle_ws_text(packet.get_string_from_utf8())
+				else:
+					_handle_ws_binary(packet)
+		elif state == WebSocketPeer.STATE_CLOSED:
+			var was_connected := _ws_was_open
+			_reset_realtime_state()
+			if was_connected and current_user_id != "":
+				call_deferred("connect_realtime")
+
+	# 🌟 เช็กข้อมูล Web Fetch จากคิว JavaScript ทุกเฟรม
+	if OS.has_feature("web") and not _web_fetch_pending.is_empty():
+		var window := JavaScriptBridge.get_interface("window")
+		var queue = JavaScriptBridge.eval("window._godot_fetch_queue;")
+		if queue is Array and not queue.is_empty():
+			# ดึงข้อมูลก้อนแรกออกมาประมวลผล
+			var item = JavaScriptBridge.eval("window._godot_fetch_queue.shift();")
+			if item is Dictionary:
+				var fetch_id := int(item.get("id", 0))
+				var status := int(item.get("status", 0))
+				var body_text := str(item.get("body", ""))
+				_finish_web_fetch_by_id(fetch_id, status, body_text)
 
 
 func _reset_realtime_state() -> void:
@@ -546,24 +560,9 @@ func _init_web_bridge() -> void:
 		return
 	_js_bridge_initialized = true
 	
-	# 🌟 ใช้รับข้อมูลเป็น JSON String ก้อนเดียว ป้องกันปัญหาอาร์กิวเมนต์สูญหาย
-	var cb := JavaScriptBridge.create_callback(func(args: Array) -> void:
-		if args.is_empty():
-			return
-		var json := JSON.new()
-		if json.parse(str(args[0])) != OK:
-			return
-		var data: Variant = json.get_data()
-		if not data is Dictionary:
-			return
-			
-		var fetch_id := int(data.get("id", 0))
-		var status := int(data.get("status", 0))
-		var body_text := str(data.get("body", ""))
-		_finish_web_fetch_by_id(fetch_id, status, body_text)
-	)
+	# สร้างคิวกลางไว้บน window ของ JavaScript
 	var window := JavaScriptBridge.get_interface("window")
-	window._godot_fetch_dispatcher = cb
+	JavaScriptBridge.eval("window._godot_fetch_queue = [];")
 
 
 func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> void:
@@ -572,9 +571,9 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 	var fetch_id := _web_fetch_seq
 	_web_fetch_pending[fetch_id] = callback
 
+	# ยัดข้อมูลลงในคิว JavaScript ทันทีที่โหลดเสร็จ
 	var js := """
 	(function() {
-		console.log("[JS Fetch] กำลังยิงไปที่ URL:", %s);
 		fetch(%s, {
 			method: 'GET',
 			headers: {
@@ -583,20 +582,14 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 				'Accept': 'application/json'
 			}
 		}).then(function(r) {
-			console.log("[JS Fetch] สำเร็จ! Status:", r.status);
 			return r.text().then(function(t) {
-				console.log("[JS Fetch] Body ยาว:", t.length);
-				var packet = JSON.stringify({ id: %d, status: r.status, body: t });
-				window._godot_fetch_dispatcher(packet);
+				window._godot_fetch_queue.push({ id: %d, status: r.status, body: t });
 			});
 		}).catch(function(e) {
-			console.error("[JS Fetch] เกิดข้อผิดพลาด:", e);
-			var packet = JSON.stringify({ id: %d, status: 0, body: String(e) });
-			window._godot_fetch_dispatcher(packet);
+			window._godot_fetch_queue.push({ id: %d, status: 0, body: String(e) });
 		});
 	})();
 	""" % [
-		JSON.stringify(url),
 		JSON.stringify(url),
 		JSON.stringify(SupabaseConfig.anon_key),
 		JSON.stringify(auth_token),
