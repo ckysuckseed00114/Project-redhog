@@ -445,7 +445,7 @@ func sign_in(email: String, password: String, callback: Callable = Callable()) -
 	var http = HTTPRequest.new()
 	add_child(http)
 	_connect_http_callback(http, func(_result, response_code, _headers_res, body):
-		var response_data := _parse_json_body(body)
+		var response_data: Variant = _parse_json_body(body)
 
 		if response_code >= 200 and response_code < 300 and _apply_auth_response(response_data):
 			print("✅ ล็อกอินสำเร็จ! User ID: ", current_user_id)
@@ -502,7 +502,7 @@ func fetch_data(table_name: String, query_params: String = "", callback: Callabl
 	var http = HTTPRequest.new()
 	add_child(http)
 	_connect_http_callback(http, func(result, response_code, _headers_res, body):
-		var response_data := _parse_json_body(body)
+		var response_data: Variant = _parse_json_body(body)
 		var rows := normalize_rows(response_data)
 
 		if result != HTTPRequest.RESULT_SUCCESS:
