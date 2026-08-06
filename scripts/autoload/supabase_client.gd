@@ -545,7 +545,7 @@ func _fetch_data_http(url: String, auth_token: String, callback: Callable) -> vo
 
 func _fetch_data_browser(url: String, auth_token: String, callback: Callable) -> void:
 	_web_fetch_seq += 1
-	var fetch_id := _web_fetch_seq
+	var fetch_id: int = _web_fetch_seq
 	_web_fetch_pending[fetch_id] = callback
 
 	var js_cb := JavaScriptBridge.create_callback(func(args: Array) -> void:
@@ -553,6 +553,12 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 			return
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
+		
+		# ทำความสะอาดตัวแปรบน window เมื่อใช้งานเสร็จ
+		var win: JavaScriptObject = JavaScriptBridge.get_interface("window")
+		if win:
+			win.eval("delete window._fetch_cb_" + str(fetch_id))
+			
 		if not pending.is_valid() or args.is_empty():
 			pending.call(false, [])
 			return
@@ -567,9 +573,7 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 			pending.call(false, [])
 			return
 			
-		# 🌟 แปลงชนิดเป็น Dictionary ชัดเจนเพื่อให้คอมไพเลอร์รู้ประเภทข้อมูลภายใน
 		var packet: Dictionary = raw_packet
-		
 		var status: int = int(packet.get("status", 0))
 		var body_text: String = str(packet.get("body", ""))
 		
@@ -581,6 +585,11 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 		print("[BrowserFetch] status=", status, " rows=", rows.size())
 		pending.call(ok, rows)
 	)
+
+	# 🌟 ผูก Callback ไว้บน window ของเบราว์เซอร์อย่างปลอดภัย
+	var window: JavaScriptObject = JavaScriptBridge.get_interface("window")
+	var cb_prop_name: String = "_fetch_cb_" + str(fetch_id)
+	window[cb_prop_name] = js_cb
 
 	var js := """
 	(function() {
@@ -594,19 +603,26 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 		}).then(function(r) {
 			return r.text().then(function(t) {
 				var payload = JSON.stringify({ status: r.status, body: t });
-				%s([payload]);
+				if (window.%s) {
+					window.%s(payload);
+				}
 			});
 		}).catch(function(e) {
-			%s([JSON.stringify({ status: 0, body: String(e) })]);
+			if (window.%s) {
+				window.%s(JSON.stringify({ status: 0, body: String(e) }));
+			}
 		});
 	})();
 	""" % [
 		JSON.stringify(url),
 		JSON.stringify(SupabaseConfig.anon_key),
 		JSON.stringify(auth_token),
-		js_cb,
-		js_cb,
+		cb_prop_name,
+		cb_prop_name,
+		cb_prop_name,
+		cb_prop_name,
 	]
+	
 	print("[BrowserFetch] start url=", url)
 	JavaScriptBridge.eval(js)
 
@@ -614,6 +630,8 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 		if not _web_fetch_pending.has(fetch_id):
 			return
 		print("[BrowserFetch] timeout — fallback HTTPRequest")
+		if window:
+			window.eval("delete window." + cb_prop_name)
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
 		if pending.is_valid():
