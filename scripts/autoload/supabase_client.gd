@@ -560,9 +560,24 @@ func _init_web_bridge() -> void:
 		return
 	_js_bridge_initialized = true
 	
-	# สร้างคิวกลางไว้บน window ของ JavaScript
+	# 🌟 สร้าง Callback รับแพ็กเกจ JSON String ก้อนเดียวจาก JavaScript
+	var cb := JavaScriptBridge.create_callback(func(args: Array) -> void:
+		if args.is_empty():
+			return
+		var json := JSON.new()
+		if json.parse(str(args[0])) != OK:
+			return
+		var data: Variant = json.get_data()
+		if not data is Dictionary:
+			return
+			
+		var fetch_id := int(data.get("id", 0))
+		var status := int(data.get("status", 0))
+		var body_text := str(data.get("body", ""))
+		_finish_web_fetch_by_id(fetch_id, status, body_text)
+	)
 	var window := JavaScriptBridge.get_interface("window")
-	JavaScriptBridge.eval("window._godot_fetch_queue = [];")
+	window._godot_fetch_dispatcher = cb
 
 
 func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> void:
@@ -571,7 +586,7 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 	var fetch_id := _web_fetch_seq
 	_web_fetch_pending[fetch_id] = callback
 
-	# ยัดข้อมูลลงในคิว JavaScript ทันทีที่โหลดเสร็จ
+	# 🌟 ห่อข้อมูลเป็น JSON string แล้วยิงเข้า dispatcher ตรงๆ
 	var js := """
 	(function() {
 		fetch(%s, {
@@ -583,10 +598,16 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 			}
 		}).then(function(r) {
 			return r.text().then(function(t) {
-				window._godot_fetch_queue.push({ id: %d, status: r.status, body: t });
+				var packet = JSON.stringify({ id: %d, status: r.status, body: t });
+				if (window._godot_fetch_dispatcher) {
+					window._godot_fetch_dispatcher(packet);
+				}
 			});
 		}).catch(function(e) {
-			window._godot_fetch_queue.push({ id: %d, status: 0, body: String(e) });
+			var packet = JSON.stringify({ id: %d, status: 0, body: String(e) });
+			if (window._godot_fetch_dispatcher) {
+				window._godot_fetch_dispatcher(packet);
+			}
 		});
 	})();
 	""" % [
@@ -602,11 +623,10 @@ func _fetch_data_web(url: String, auth_token: String, callback: Callable) -> voi
 	timer.timeout.connect(func() -> void:
 		if not _web_fetch_pending.has(fetch_id):
 			return
-		print("[WebFetch] JS timeout — ชะตากรรมขาดลอย")
+		print("[WebFetch] JS timeout")
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
 		if pending.is_valid():
-			# ปิดการเรียก HTTPRequest ซ้ำซ้อนบนเว็บเพื่อกัน HTTP result 8
 			pending.call(false, [])
 	, CONNECT_ONE_SHOT)
 
