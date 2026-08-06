@@ -68,6 +68,9 @@ static func _collect_frame_paths(job: String, gender: String, folder_name: Strin
 
 
 static func _list_pngs(dir_path: String, job: String, gender: String, folder_name: String) -> PackedStringArray:
+	if OS.has_feature("web"):
+		return _probe_only(dir_path, job, gender, folder_name)
+
 	if DirAccess.dir_exists_absolute(dir_path):
 		var files: PackedStringArray = DirAccess.get_files_at(dir_path)
 		if not files.is_empty():
@@ -82,6 +85,10 @@ static func _list_pngs(dir_path: String, job: String, gender: String, folder_nam
 					listed.append("%s/%s" % [dir_path, n])
 				return listed
 
+	return _probe_only(dir_path, job, gender, folder_name)
+
+
+static func _probe_only(dir_path: String, job: String, gender: String, folder_name: String) -> PackedStringArray:
 	for prefix in _probe_prefixes(job, gender, folder_name):
 		var probed := _probe_sequence(dir_path, prefix)
 		if not probed.is_empty():

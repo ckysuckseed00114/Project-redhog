@@ -6,6 +6,7 @@ signal realtime_channel_joined
 const HEARTBEAT_INTERVAL := 30.0
 const WS_PROTOCOL_VERSION := "2.0.0"
 const BINARY_BROADCAST := 0x04
+const WEB_SESSION_PATH := "user://web_session.cfg"
 
 var current_user_id: String = ""
 var current_access_token: String = ""
@@ -23,7 +24,77 @@ var _primary_channel: String = RealtimeChannel.GLOBAL
 
 func _ready() -> void:
 	SupabaseConfig.ensure_loaded()
+	_restore_web_session()
 	join_channel(RealtimeChannel.GLOBAL)
+
+
+func is_authenticated() -> bool:
+	return current_user_id != "" and current_access_token != ""
+
+
+func clear_session() -> void:
+	current_user_id = ""
+	current_access_token = ""
+	if OS.has_feature("web"):
+		var cfg := ConfigFile.new()
+		cfg.save(WEB_SESSION_PATH)
+
+
+func _save_web_session() -> void:
+	if not OS.has_feature("web"):
+		return
+	var cfg := ConfigFile.new()
+	cfg.set_value("auth", "user_id", current_user_id)
+	cfg.set_value("auth", "access_token", current_access_token)
+	cfg.save(WEB_SESSION_PATH)
+
+
+func _restore_web_session() -> void:
+	if not OS.has_feature("web"):
+		return
+	var cfg := ConfigFile.new()
+	if cfg.load(WEB_SESSION_PATH) != OK:
+		return
+	current_user_id = str(cfg.get_value("auth", "user_id", ""))
+	current_access_token = str(cfg.get_value("auth", "access_token", ""))
+	if is_authenticated():
+		connect_realtime()
+
+
+func _apply_auth_response(response_data: Variant) -> bool:
+	if response_data is Dictionary:
+		current_access_token = str(response_data.get("access_token", ""))
+		var user_info: Variant = response_data.get("user", {})
+		if user_info is Dictionary:
+			current_user_id = str(user_info.get("id", ""))
+		else:
+			current_user_id = str(response_data.get("user_id", ""))
+		if is_authenticated():
+			_save_web_session()
+			return true
+	return false
+
+
+func _parse_json_body(body: PackedByteArray) -> Variant:
+	if body.is_empty():
+		return null
+	var json := JSON.new()
+	if json.parse(body.get_string_from_utf8()) != OK:
+		return null
+	return json.get_data()
+
+
+func normalize_rows(data: Variant) -> Array:
+	var rows: Array = []
+	if data is Array:
+		for item in data:
+			if item is Dictionary:
+				rows.append(item)
+	elif data is Dictionary and data.get("data") is Array:
+		for item in data.get("data", []):
+			if item is Dictionary:
+				rows.append(item)
+	return rows
 
 
 func get_primary_channel() -> String:
@@ -374,14 +445,9 @@ func sign_in(email: String, password: String, callback: Callable = Callable()) -
 	var http = HTTPRequest.new()
 	add_child(http)
 	_connect_http_callback(http, func(_result, response_code, _headers_res, body):
-		var json = JSON.new()
-		json.parse(body.get_string_from_utf8())
-		var response_data = json.get_data()
+		var response_data := _parse_json_body(body)
 
-		if response_code >= 200 and response_code < 300:
-			current_access_token = response_data.get("access_token", "")
-			var user_info = response_data.get("user", {})
-			current_user_id = user_info.get("id", "")
+		if response_code >= 200 and response_code < 300 and _apply_auth_response(response_data):
 			print("✅ ล็อกอินสำเร็จ! User ID: ", current_user_id)
 			connect_realtime()
 			if callback.is_valid():
@@ -402,7 +468,7 @@ func insert_data(table_name: String, data: Dictionary, callback: Callable = Call
 		"apikey: " + SupabaseConfig.anon_key,
 		"Authorization: Bearer " + auth_token,
 		"Content-Type: application/json",
-		"Prefer: return=representation, resolution=merge-duplicates"
+		"Prefer: return=representation"
 	]
 
 	var http = HTTPRequest.new()
@@ -427,31 +493,31 @@ func fetch_data(table_name: String, query_params: String = "", callback: Callabl
 	SupabaseConfig.ensure_loaded()
 	var url = SupabaseConfig.url + table_name + ("?" + query_params if query_params != "" else "")
 	var auth_token = current_access_token if current_access_token != "" else SupabaseConfig.anon_key
-	var headers = [
+	var headers = PackedStringArray([
 		"apikey: " + SupabaseConfig.anon_key,
-		"Authorization: Bearer " + auth_token
-	]
+		"Authorization: Bearer " + auth_token,
+		"Accept: application/json",
+	])
 
 	var http = HTTPRequest.new()
 	add_child(http)
 	_connect_http_callback(http, func(result, response_code, _headers_res, body):
-		var json = JSON.new()
-		json.parse(body.get_string_from_utf8())
-		var response_data = json.get_data()
+		var response_data := _parse_json_body(body)
+		var rows := normalize_rows(response_data)
 
 		if result != HTTPRequest.RESULT_SUCCESS:
 			print("❌ ดึงข้อมูลล้มเหลว (HTTP result %d)" % result)
 			if callback.is_valid():
-				callback.call(false, response_data)
+				callback.call(false, rows)
 			return
 
 		if response_code >= 200 and response_code < 300:
 			if callback.is_valid():
-				callback.call(true, response_data)
+				callback.call(true, rows)
 		else:
 			print("❌ ดึงข้อมูลล้มเหลว (Code %d): " % response_code, response_data)
 			if callback.is_valid():
-				callback.call(false, response_data)
+				callback.call(false, rows)
 	)
 	http.request(url, headers, HTTPClient.METHOD_GET)
 

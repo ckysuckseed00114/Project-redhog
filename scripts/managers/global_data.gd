@@ -23,6 +23,32 @@ var save_point_x: float = 0.0
 var save_point_y: float = 0.0
 var has_save_point: bool = false
 var pending_revive_at_save: bool = false
+var pending_created_character: Dictionary = {}
+
+
+func remember_created_character(data: Dictionary) -> void:
+	pending_created_character = data.duplicate(true)
+
+
+func take_pending_created_character() -> Dictionary:
+	var data := pending_created_character.duplicate(true)
+	pending_created_character = {}
+	return data
+
+
+func merge_character_rows(fetched: Array, user_id: String) -> Array:
+	var merged: Dictionary = {}
+	for row in fetched:
+		if row is Dictionary and str(row.get("user_id", "")) == user_id:
+			var cid := str(row.get("character_id", ""))
+			merged[cid] = row
+			if not pending_created_character.is_empty() and str(pending_created_character.get("character_id", "")) == cid:
+				pending_created_character = {}
+	if not pending_created_character.is_empty() and str(pending_created_character.get("user_id", "")) == user_id:
+		var pending_id := str(pending_created_character.get("character_id", ""))
+		if pending_id != "" and not merged.has(pending_id):
+			merged[pending_id] = pending_created_character.duplicate(true)
+	return merged.values()
 
 
 func stash_quest_state(player: Player) -> void:

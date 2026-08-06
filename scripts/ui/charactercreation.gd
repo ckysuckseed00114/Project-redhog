@@ -109,12 +109,17 @@ func _on_button_pressed() -> void:
 			}
 			
 			SupabaseClient.insert_data("players", initial_player_data, func(success, _res):
-				if success:
-					print("✅ บันทึกข้อมูลตัวละครใหม่ลง Cloud สำเร็จ")
-				else:
-					print("❌ บันทึกข้อมูลตั้งต้นไม่สำเร็จ")
-					
-				# เปลี่ยนฉากเมื่อสร้างเสร็จสมบูรณ์
+				if start_btn:
+					start_btn.disabled = false
+				if not success:
+					_show_status("❌ บันทึกตัวละครไม่สำเร็จ ลองใหม่อีกครั้ง", Color8(0xe7, 0x4c, 0x3c))
+					return
+
+				print("✅ บันทึกข้อมูลตัวละครใหม่ลง Cloud สำเร็จ")
+				GlobalData.remember_created_character(initial_player_data)
+				GlobalData.spawn_x = 638.0
+				GlobalData.spawn_y = 400.0
+				GlobalData.has_saved_position = true
 				get_tree().change_scene_to_file("res://scenes/maps/capital_city.tscn")
 			)
 			
