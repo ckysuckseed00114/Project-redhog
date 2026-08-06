@@ -23,6 +23,26 @@ var _primary_channel: String = RealtimeChannel.GLOBAL
 var _web_fetch_seq: int = 0
 var _web_fetch_pending: Dictionary = {}
 var _web_fetch_callbacks: Dictionary = {}
+var _web_fetch_helper_ready: bool = false
+
+const WEB_FETCH_HELPER_JS := """
+window.__godotRestGet = function(url, apikey, authHeader, cb) {
+	fetch(url, {
+		method: 'GET',
+		headers: {
+			'apikey': apikey,
+			'Authorization': authHeader,
+			'Accept': 'application/json'
+		}
+	}).then(function(r) {
+		return r.text().then(function(t) {
+			cb([JSON.stringify({ status: r.status, body: t })]);
+		});
+	}).catch(function(e) {
+		cb([JSON.stringify({ status: 0, body: String(e) })]);
+	});
+};
+"""
 
 
 func _ready() -> void:
@@ -544,7 +564,16 @@ func _fetch_data_http(url: String, auth_token: String, callback: Callable) -> vo
 	http.request(url, headers, HTTPClient.METHOD_GET)
 
 
+func _ensure_web_fetch_helper() -> void:
+	if _web_fetch_helper_ready:
+		return
+	JavaScriptBridge.eval(WEB_FETCH_HELPER_JS)
+	_web_fetch_helper_ready = true
+
+
 func _fetch_data_browser(url: String, auth_token: String, callback: Callable) -> void:
+	_ensure_web_fetch_helper()
+
 	_web_fetch_seq += 1
 	var fetch_id: int = _web_fetch_seq
 	_web_fetch_pending[fetch_id] = callback
@@ -584,38 +613,11 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 		pending.call(ok, rows)
 	)
 
-	# ต้องเก็บ reference ไว้จน callback ถูกเรียก (Godot จะ GC ทิ้งถ้าไม่เก็บ)
 	_web_fetch_callbacks[fetch_id] = js_cb
 
-	# ใช้ %s([payload]) ใน eval โดยตรง — pattern ที่ Godot 4.2 รองรับ (ไม่ใช่ window.xxx(payload))
-	var js := """
-	(function() {
-		fetch(%s, {
-			method: 'GET',
-			headers: {
-				'apikey': %s,
-				'Authorization': %s,
-				'Accept': 'application/json'
-			}
-		}).then(function(r) {
-			return r.text().then(function(t) {
-				var payload = JSON.stringify({ status: r.status, body: t });
-				%s([payload]);
-			});
-		}).catch(function(e) {
-			%s([JSON.stringify({ status: 0, body: String(e) })]);
-		});
-	})();
-	""" % [
-		JSON.stringify(url),
-		JSON.stringify(SupabaseConfig.anon_key),
-		JSON.stringify("Bearer " + auth_token),
-		js_cb,
-		js_cb,
-	]
-
+	var window_obj: JavaScriptObject = JavaScriptBridge.get_interface("window")
 	print("[BrowserFetch] start url=", url)
-	JavaScriptBridge.eval(js)
+	window_obj.call("__godotRestGet", url, SupabaseConfig.anon_key, "Bearer " + auth_token, js_cb)
 
 	get_tree().create_timer(15.0).timeout.connect(func() -> void:
 		_web_fetch_callbacks.erase(fetch_id)

@@ -1,0 +1,18 @@
+<script>
+window.__godotRestGet = function(url, apikey, authHeader, cb) {
+	fetch(url, {
+		method: 'GET',
+		headers: {
+			'apikey': apikey,
+			'Authorization': authHeader,
+			'Accept': 'application/json'
+		}
+	}).then(function(r) {
+		return r.text().then(function(t) {
+			cb([JSON.stringify({ status: r.status, body: t })]);
+		});
+	}).catch(function(e) {
+		cb([JSON.stringify({ status: 0, body: String(e) })]);
+	});
+};
+</script>
