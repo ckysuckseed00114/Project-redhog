@@ -42,10 +42,6 @@ func send_global(event: String, data: Dictionary) -> void:
 	SupabaseClient.send_broadcast(event, payload, RealtimeChannel.GLOBAL)
 
 
-func send_from_node(event: String, data: Dictionary, node: Node) -> void:
-	send(event, data, SceneContext.from_node(node))
-
-
 func _on_raw_broadcast(payload: Dictionary) -> void:
 	var event := str(payload.get(RealtimeEvents.KEY_EVENT, ""))
 	if event == "":

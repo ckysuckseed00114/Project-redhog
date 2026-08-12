@@ -1,13 +1,9 @@
 extends Node
 
-signal timer_updated(seconds_left: float, boss_name: String)
 signal timers_updated(entries: Array)
-signal boss_spawned(monster: Node)
-signal boss_defeated(boss_name: String)
 
 const BOSS_ID := "big_poring"
 
-var seconds_until_spawn: float = WorldSyncManager.SPAWN_INTERVAL
 var active_boss: Node = null
 var _world: World = null
 
@@ -32,13 +28,8 @@ func _process(_delta: float) -> void:
 
 
 func _refresh_timer() -> void:
-	seconds_until_spawn = WorldSyncManager.get_boss_seconds_left()
 	var entries := WorldSyncManager.get_boss_entries()
 	timers_updated.emit(entries)
-	if not entries.is_empty() and entries[0] is Dictionary:
-		timer_updated.emit(seconds_until_spawn, str(entries[0].get("boss_name", boss_display_name())))
-	else:
-		timer_updated.emit(seconds_until_spawn, boss_display_name())
 
 
 func request_synced_spawn() -> void:
@@ -80,7 +71,6 @@ func _bind_boss(boss: Node) -> void:
 	active_boss = boss
 	if not boss.died.is_connected(_on_boss_died):
 		boss.died.connect(_on_boss_died)
-	boss_spawned.emit(boss)
 	_announce("⚠ BOSS %s has appeared!" % boss_display_name())
 	_refresh_timer()
 
@@ -88,7 +78,6 @@ func _bind_boss(boss: Node) -> void:
 func _on_boss_died(_monster: Node) -> void:
 	active_boss = null
 	WorldSyncManager.on_local_boss_defeated()
-	boss_defeated.emit(boss_display_name())
 	_announce("✦ %s has been defeated!" % boss_display_name())
 	_refresh_timer()
 

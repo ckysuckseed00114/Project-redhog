@@ -80,11 +80,25 @@ static func apply_to_player(player: Player) -> void:
 		for qid in finished:
 			player.finished_quests.append(str(qid))
 
+	if s.has("has_save_point"):
+		GlobalData.has_save_point = bool(s.get("has_save_point", false))
+		GlobalData.save_point_scene = WarpHelper.normalize_scene_path(str(s.get("save_point_scene", "")))
+		GlobalData.save_point_x = float(s.get("save_point_x", 0.0))
+		GlobalData.save_point_y = float(s.get("save_point_y", 0.0))
+		if GlobalData.save_point_scene == "":
+			GlobalData.has_save_point = false
+
 	player.apply_job_visuals(player.current_job, GlobalData.player_gender)
 	GlobalData.warp_spawn_pending = false
 	GlobalData.has_saved_position = false
 	GlobalData.pending_warp_scene = ""
 	GlobalData.clear_pending_quest_state()
+
+	if s.get("revive_at_save", false):
+		if player.has_method("restore_after_save_point_revive"):
+			player.restore_after_save_point_revive(player.global_position)
+		GlobalData.pending_revive_at_save = false
+
 	clear()
 
 	player.stats_changed.emit()
@@ -98,6 +112,7 @@ static func apply_to_player(player: Player) -> void:
 
 
 static func _build_snapshot(player: Player, spawn_pos: Vector2, scene_path: String) -> Dictionary:
+	var revive_save := GlobalData.pending_revive_at_save
 	return {
 		"pos_x": spawn_pos.x,
 		"pos_y": spawn_pos.y,
@@ -111,10 +126,11 @@ static func _build_snapshot(player: Player, spawn_pos: Vector2, scene_path: Stri
 		"job_exp": player.job_exp,
 		"max_job_exp": player.max_job_exp,
 		"job_points": player.job_points,
-		"hp": player.hp,
+		"hp": player.max_hp if revive_save else player.hp,
 		"max_hp": player.max_hp,
-		"sp": player.sp,
+		"sp": player.max_sp if revive_save else player.sp,
 		"max_sp": player.max_sp,
+		"revive_at_save": revive_save,
 		"str_stat": player.str_stat,
 		"agi": player.agi,
 		"vit": player.vit,
@@ -128,8 +144,11 @@ static func _build_snapshot(player: Player, spawn_pos: Vector2, scene_path: Stri
 		"skill_levels": player.skill_levels.duplicate(true),
 		"active_quests": player.active_quests.duplicate(true),
 		"finished_quests": player.finished_quests.duplicate(),
+		"has_save_point": GlobalData.has_save_point,
+		"save_point_scene": GlobalData.save_point_scene,
+		"save_point_x": GlobalData.save_point_x,
+		"save_point_y": GlobalData.save_point_y,
 	}
-
 
 static func _copy_inventory(source: Array) -> Array:
 	var copy: Array = []

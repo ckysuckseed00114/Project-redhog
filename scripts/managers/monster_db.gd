@@ -52,6 +52,55 @@ const MONSTERS = {
 		"drops": [
 			{ "id": "armor01", "chance": 0.3 }
 		]
+	},
+	"meadow_goblin": {
+		"name": "Meadow Goblin",
+		"creature": "Goblin",
+		"max_hp": 8,
+		"speed": 12.0,
+		"chase_range": 90.0,
+		"attack_range": 34.0,
+		"attack_cooldown": 1.6,
+		"exp": 30,
+		"scale": Vector2(1.0, 1.0),
+		"body_radius": 8.0,
+		"click_radius": 32.0,
+		"drops": [
+			{ "id": "sword01", "chance": 0.25 }
+		]
+	},
+	"thicket_orc": {
+		"name": "Thicket Orc",
+		"creature": "Orc",
+		"max_hp": 14,
+		"speed": 11.0,
+		"chase_range": 95.0,
+		"attack_range": 36.0,
+		"attack_cooldown": 1.8,
+		"exp": 45,
+		"scale": Vector2(1.0, 1.0),
+		"body_radius": 9.0,
+		"click_radius": 34.0,
+		"drops": [
+			{ "id": "armor01", "chance": 0.35 }
+		]
+	},
+	"boulder_ogre": {
+		"name": "Boulder Ogre",
+		"creature": "Ogre",
+		"max_hp": 22,
+		"speed": 8.0,
+		"chase_range": 85.0,
+		"attack_range": 40.0,
+		"attack_cooldown": 2.2,
+		"exp": 70,
+		"scale": Vector2(1.15, 1.15),
+		"body_radius": 11.0,
+		"click_radius": 36.0,
+		"drops": [
+			{ "id": "sword01", "chance": 0.4 },
+			{ "id": "armor01", "chance": 0.3 }
+		]
 	}
 }
 

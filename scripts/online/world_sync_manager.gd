@@ -41,6 +41,12 @@ const MOB_SLOTS: Array[Dictionary] = [
 	{"sync_id": "fabre_4", "type": "fabre", "pos": Vector2(1040, 420)},
 ]
 
+const WEST_FIELD_MOB_SLOTS: Array[Dictionary] = [
+	{"sync_id": "west_meadow_goblin_0", "type": "meadow_goblin", "pos": Vector2(320, 280)},
+	{"sync_id": "west_thicket_orc_0", "type": "thicket_orc", "pos": Vector2(640, 360)},
+	{"sync_id": "west_boulder_ogre_0", "type": "boulder_ogre", "pos": Vector2(960, 440)},
+]
+
 var _world: World = null
 var _dead_mobs: Dictionary = {}
 var _boss_defeated_cycles: Dictionary = {}
@@ -203,7 +209,7 @@ func mark_boss_spawned(scene: String = "") -> void:
 
 
 func get_slot_respawn_pos(sync_id: String) -> Vector2:
-	for slot in MOB_SLOTS:
+	for slot in _all_mob_slot_sources():
 		if str(slot.get("sync_id", "")) == sync_id:
 			return slot.get("pos", Vector2.ZERO)
 	return Vector2(
@@ -268,7 +274,19 @@ func on_local_boss_defeated() -> void:
 
 
 func get_mob_slots() -> Array:
-	return MOB_SLOTS.duplicate(true)
+	var scene := WarpHelper.normalize_scene_path(get_scene_path())
+	if scene == ProjectPaths.WEST_FIELD:
+		return WEST_FIELD_MOB_SLOTS.duplicate(true)
+	if scene == ProjectPaths.WORLD:
+		return MOB_SLOTS.duplicate(true)
+	return []
+
+
+func _all_mob_slot_sources() -> Array[Dictionary]:
+	var all: Array[Dictionary] = []
+	all.append_array(MOB_SLOTS)
+	all.append_array(WEST_FIELD_MOB_SLOTS)
+	return all
 
 
 func tick_global(_delta: float) -> void:

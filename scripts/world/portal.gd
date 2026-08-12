@@ -59,8 +59,5 @@ func _on_body_entered(body: Node2D) -> void:
 
 	_warping = true
 	var player: Player = body as Player if body is Player else null
-	
-	if player and DatabaseManager != null and DatabaseManager.has_method("save_player_data"):
-		await DatabaseManager.save_player_data(player)
-
 	await WarpHelper.execute(get_tree(), target_scene, spawn_position, destination_name, player)
+	_warping = false

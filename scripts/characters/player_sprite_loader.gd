@@ -1,15 +1,21 @@
 class_name PlayerSpriteLoader
 extends RefCounted
 
+## โหลด sprite ผู้เล่นจากโครงสร้างเดียว:
+## res://animation/player/{job}/{gender}/{folder}/000.png, 001.png, ...
+
 const BASE := "res://animation/player"
-const LEGACY_GENDER_BASE := "res://animation/player"
 
 const ANIM_FOLDER_MAP := {
-	"idle": "Idle",
-	"walking": "Walking",
-	"attack": "Slashing",
-	"hurt": "Hurt",
-	"dying": "Dying",
+	"idle": "idle",
+	"walk_side": "walking_side",
+	"walk_down": "walking_down",
+	"walk_down_right": "walking_down_right",
+	"walk_upright": "walking_up_right",
+	"walk_up": "walking_up",
+	"attack": "attack",
+	"hurt": "hurt",
+	"dying": "dying",
 }
 
 const ALL_JOBS := ["novice", "sword", "mage", "thief", "acolyte", "hunter"]
@@ -17,99 +23,101 @@ const ALL_GENDERS := ["male", "female"]
 
 const ATTACK_HIT_FRAMES := {
 	"novice_male": 4,
-	"novice_female": 4,
+	"novice_female": 5,
 }
 
 const HURT_FRAME_INDICES := {
 	"novice_male": [1, 2],
+	"novice_female": [1, 2],
+}
+
+const ANIM_SPEEDS := {
+	"idle": 8.0,
+	"walking_side": 12.0,
+	"walking_down": 12.0,
+	"walking_down_right": 12.0,
+	"walking_up_right": 12.0,
+	"walking_up": 12.0,
+	"walking": 12.0,
+	"attack": 10.0,
+	"hurt": 10.0,
+	"dying": 10.0,
 }
 
 const MAX_PROBE_FRAMES := 64
 
 
+static func anim_dir(job: String, gender: String, folder: String) -> String:
+	return "%s/%s/%s/%s" % [BASE, job, gender, folder]
+
+
+static func frame_path(job: String, gender: String, folder: String, index: int = 0) -> String:
+	return "%s/%03d.png" % [anim_dir(job, gender, folder), index]
+
+
+static func has_frames(job: String, gender: String, folder: String) -> bool:
+	return ResourceLoader.exists(frame_path(job, gender, folder, 0))
+
+
+static func load_preview(job: String, gender: String, folder: String = "idle", index: int = 0) -> Texture2D:
+	var path := frame_path(job, gender, folder, index)
+	if not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
+
+
 static func build_sprite_frames(job: String, gender: String) -> SpriteFrames:
 	var frames := SpriteFrames.new()
-	for anim_name in ANIM_FOLDER_MAP:
-		var folder_name: String = ANIM_FOLDER_MAP[anim_name]
-		var paths := _collect_frame_paths(job, gender, folder_name)
+	for folder in ANIM_FOLDER_MAP:
+		var anim_name: String = ANIM_FOLDER_MAP[folder]
+		var paths := collect_frame_paths(job, gender, folder)
 		if anim_name == "hurt":
 			paths = _filter_hurt_paths(job, gender, paths)
 		if paths.is_empty():
 			continue
-		var loaded: Array[Texture2D] = []
-		for path in paths:
-			var tex: Texture2D = load(path) as Texture2D
-			if tex:
-				loaded.append(tex)
-		if loaded.is_empty():
-			continue
-		frames.add_animation(anim_name)
-		var speed := 8.0 if anim_name == "idle" else 10.0
-		if anim_name == "walking":
-			speed = 12.0
-		frames.set_animation_speed(anim_name, speed)
-		var loops: bool = anim_name != "attack" and anim_name != "hurt" and anim_name != "dying"
-		frames.set_animation_loop(anim_name, loops)
-		for tex in loaded:
-			frames.add_frame(anim_name, tex)
+		_add_animation(frames, anim_name, paths)
+
+	if frames.has_animation("walking_side") and not frames.has_animation("walking"):
+		_duplicate_animation(frames, "walking_side", "walking")
+
 	return frames
 
 
-static func _collect_frame_paths(job: String, gender: String, folder_name: String) -> PackedStringArray:
-	var candidates := [
-		"%s/%s/%s/PNG/PNG Sequences/%s" % [BASE, job, gender, folder_name],
-		"%s/%s/PNG/PNG Sequences/%s" % [LEGACY_GENDER_BASE, gender, folder_name],
-	]
-	for dir_path in candidates:
-		var paths := _list_pngs(dir_path, job, gender, folder_name)
-		if not paths.is_empty():
-			return paths
-	return PackedStringArray()
+static func collect_frame_paths(job: String, gender: String, folder: String) -> PackedStringArray:
+	return _probe_indexed_frames(anim_dir(job, gender, folder))
 
 
-static func _list_pngs(dir_path: String, job: String, gender: String, folder_name: String) -> PackedStringArray:
-	if OS.has_feature("web"):
-		return _probe_only(dir_path, job, gender, folder_name)
-
-	if DirAccess.dir_exists_absolute(dir_path):
-		var files: PackedStringArray = DirAccess.get_files_at(dir_path)
-		if not files.is_empty():
-			var names: Array[String] = []
-			for file_name in files:
-				if file_name.ends_with(".png"):
-					names.append(file_name)
-			names.sort()
-			if not names.is_empty():
-				var listed: PackedStringArray = []
-				for n in names:
-					listed.append("%s/%s" % [dir_path, n])
-				return listed
-
-	return _probe_only(dir_path, job, gender, folder_name)
+static func _add_animation(frames: SpriteFrames, anim_name: String, paths: PackedStringArray) -> void:
+	var loaded: Array[Texture2D] = []
+	for path in paths:
+		var tex: Texture2D = load(path) as Texture2D
+		if tex:
+			loaded.append(tex)
+	if loaded.is_empty():
+		return
+	frames.add_animation(anim_name)
+	frames.set_animation_speed(anim_name, ANIM_SPEEDS.get(anim_name, 10.0))
+	var loops := anim_name != "attack" and anim_name != "hurt" and anim_name != "dying"
+	frames.set_animation_loop(anim_name, loops)
+	for tex in loaded:
+		frames.add_frame(anim_name, tex)
 
 
-static func _probe_only(dir_path: String, job: String, gender: String, folder_name: String) -> PackedStringArray:
-	for prefix in _probe_prefixes(job, gender, folder_name):
-		var probed := _probe_sequence(dir_path, prefix)
-		if not probed.is_empty():
-			return probed
-	return PackedStringArray()
+static func _duplicate_animation(frames: SpriteFrames, from_anim: String, to_anim: String) -> void:
+	if not frames.has_animation(from_anim):
+		return
+	frames.add_animation(to_anim)
+	frames.set_animation_speed(to_anim, frames.get_animation_speed(from_anim))
+	frames.set_animation_loop(to_anim, frames.get_animation_loop(from_anim))
+	var count := frames.get_frame_count(from_anim)
+	for i in range(count):
+		frames.add_frame(to_anim, frames.get_frame_texture(from_anim, i))
 
 
-static func _probe_prefixes(job: String, gender: String, folder_name: String) -> Array[String]:
-	var prefixes: Array[String] = []
-	if job == "novice" and gender == "male":
-		prefixes.append("novice_male_%s_" % folder_name.to_lower())
-	if job == "novice" and gender == "female":
-		prefixes.append("0_Fallen_Angels_%s_" % folder_name)
-	prefixes.append("0_Fallen_Angels_%s_" % folder_name)
-	return prefixes
-
-
-static func _probe_sequence(dir_path: String, prefix: String) -> PackedStringArray:
+static func _probe_indexed_frames(dir_path: String) -> PackedStringArray:
 	var out: PackedStringArray = []
 	for i in range(MAX_PROBE_FRAMES):
-		var path := "%s/%s%03d.png" % [dir_path, prefix, i]
+		var path := "%s/%03d.png" % [dir_path, i]
 		if ResourceLoader.exists(path):
 			out.append(path)
 		elif not out.is_empty():
@@ -141,9 +149,9 @@ static func _filter_hurt_paths(job: String, gender: String, paths: PackedStringA
 
 static func get_sprite_scale(frames: SpriteFrames) -> Vector2:
 	const LEGACY_FRAME_HEIGHT := 900.0
-	const LEGACY_SCALE := 0.03
+	const LEGACY_SCALE := 0.045
 	var target_height := LEGACY_FRAME_HEIGHT * LEGACY_SCALE
-	for anim_name in ANIM_FOLDER_MAP:
+	for anim_name in ANIM_FOLDER_MAP.values():
 		if not frames.has_animation(anim_name):
 			continue
 		if frames.get_frame_count(anim_name) <= 0:
@@ -154,15 +162,12 @@ static func get_sprite_scale(frames: SpriteFrames) -> Vector2:
 		var h := float(tex.get_height())
 		if h <= 0.0:
 			continue
-		var s := target_height / h
-		return Vector2(s, s)
+		return Vector2(target_height / h, target_height / h)
 	return Vector2(LEGACY_SCALE, LEGACY_SCALE)
 
 
 static func ensure_folder_structure() -> void:
-	var anims := ANIM_FOLDER_MAP.values()
 	for job in ALL_JOBS:
 		for gender in ALL_GENDERS:
-			for anim_folder in anims:
-				var path := "%s/%s/%s/PNG/PNG Sequences/%s" % [BASE, job, gender, anim_folder]
-				DirAccess.make_dir_recursive_absolute(path)
+			for folder in ANIM_FOLDER_MAP:
+				DirAccess.make_dir_recursive_absolute(anim_dir(job, gender, folder))

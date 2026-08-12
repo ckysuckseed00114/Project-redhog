@@ -8,6 +8,7 @@ var selected_target: CharacterBody2D = null
 var _poring_scene: PackedScene
 var _big_poring_scene: PackedScene
 var _fabre_scene: PackedScene
+var _generic_monster_scene: PackedScene
 var _monsters: Array[CharacterBody2D] = []
 var _mob_by_sync_id: Dictionary = {}
 
@@ -15,12 +16,24 @@ var _mob_by_sync_id: Dictionary = {}
 
 # --- Lifecycle ---
 
+func get_map_theme() -> String:
+	return "field"
+
+
+func get_scenery_exclusions() -> Array[Vector2]:
+	return [
+		Vector2(640, 14),
+		Vector2(640, 400),
+	]
+
+
 func _ready() -> void:
 	super._ready()
 
 	_poring_scene = preload("res://scenes/characters/poring.tscn")
 	_big_poring_scene = preload("res://scenes/characters/big_poring.tscn")
 	_fabre_scene = preload("res://scenes/characters/fabre.tscn")
+	_generic_monster_scene = preload("res://scenes/characters/generic_monster.tscn")
 	
 	_spawn_monsters()
 
@@ -155,8 +168,18 @@ func _instantiate_mob(mob_type: String) -> Monster:
 			if fabre:
 				fabre.monster_id = "fabre"
 			return fabre
+		"poring":
+			var poring: Monster = _poring_scene.instantiate() as Monster
+			if poring:
+				poring.monster_id = "poring"
+			return poring
 		_:
-			return _poring_scene.instantiate() as Monster
+			if MonsterDB.get_monster(mob_type).is_empty():
+				return _poring_scene.instantiate() as Monster
+			var mob: Monster = _generic_monster_scene.instantiate() as Monster
+			if mob:
+				mob.monster_id = mob_type
+			return mob
 
 
 func get_mob_by_sync_id(sync_id: String) -> CharacterBody2D:
@@ -367,9 +390,6 @@ func do_attack() -> void:
 					inflict_damage_to_monster(m)
 					break
 
-
-# --- Movement (override BaseMap) ---
-
 func _physics_process(delta: float) -> void:
 	if not player:
 		return
@@ -380,7 +400,6 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("attack"):
 		do_attack()
 
-	# 🌟 แทรกโค้ด AI ตรงนี้: ถ้าเปิด Auto ไว้ ให้มันคิดหาเป้าหมาย
 	if player.get("is_auto_mode"):
 		_process_auto_ai()
 
@@ -419,9 +438,9 @@ func _handle_movement(_delta: float) -> void:
 
 	var p_pos := player.global_position
 
-	# 🌟 --- ระบบเซฟตี้หนีบอสอัตโนมัติ (ใส่เกียร์หมาทันทีที่เข้าใกล้บอส) ---
+	# --- ระบบเซฟตี้หนีบอสอัตโนมัติ (Flee Boss) ---
 	if player.get("is_auto_mode") and player.get("auto_flee_boss"):
-		var flee_radius_sq := 160000.0 # รัศมีอันตราย
+		var flee_radius_sq := 160000.0 
 		var boss_to_flee_from: CharacterBody2D = null
 		
 		for m in _monsters:
@@ -429,19 +448,16 @@ func _handle_movement(_delta: float) -> void:
 				var is_boss = (m.get("sync_id") == "world_boss" or m.get("monster_id") == "big_poring")
 				if is_boss:
 					var dist_sq = p_pos.distance_squared_to(m.global_position)
-					# 🌟 แก้ตรงนี้: เช็คระยะทาง AND เช็คว่าบอสไม่ได้อยู่หลังกำแพง ถึงจะหนี!
 					if dist_sq < flee_radius_sq and _is_path_clear(p_pos, m.global_position, m):
 						boss_to_flee_from = m
 						break
 		
-		# ถ้าเจอบอสในระยะอันตราย ให้วิ่งหนีสุดชีวิต!
 		if boss_to_flee_from:
 			_set_selected_target(null) 
 			move_target = null
 			var dir := (p_pos - boss_to_flee_from.global_position).normalized()
 			player.apply_velocity(dir.x, dir.y)
 			return
-	# 🌟 --------------------------------------------------------
 
 	if is_instance_valid(selected_target) and selected_target.get("is_active_monster"):
 		var target_pos: Vector2 = _get_monster_hit_center(selected_target)
@@ -468,7 +484,13 @@ func _handle_movement(_delta: float) -> void:
 		var target: Vector2 = move_target
 		if p_pos.distance_squared_to(target) > 16.0:
 			var dir := (target - p_pos).normalized()
+			
+			var pos_before := player.global_position
 			player.apply_velocity(dir.x, dir.y)
+			
+			if player.global_position.distance_squared_to(pos_before) < 0.01:
+				move_target = null
+				player.apply_velocity(0, 0)
 		else:
 			move_target = null
 			player.apply_velocity(0, 0)

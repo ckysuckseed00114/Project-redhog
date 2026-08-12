@@ -7,6 +7,7 @@ const HEARTBEAT_INTERVAL := 30.0
 const WS_PROTOCOL_VERSION := "2.0.0"
 const BINARY_BROADCAST := 0x04
 const WEB_SESSION_PATH := "user://web_session.cfg"
+const WEB_FETCH_TIMEOUT := 15.0
 
 var current_user_id: String = ""
 var current_access_token: String = ""
@@ -16,7 +17,6 @@ var _msg_ref: int = 0
 var _ws_was_open: bool = false
 var _connecting: bool = false
 var _heartbeat_timer: float = 0.0
-var _pending_broadcasts: Array[Dictionary] = []
 var _joined_channels: Dictionary = {} # channel_name -> join_ref
 var _pending_join_channels: Array[String] = []
 var _primary_channel: String = RealtimeChannel.GLOBAL
@@ -24,6 +24,14 @@ var _web_fetch_seq: int = 0
 var _web_fetch_pending: Dictionary = {}
 var _web_fetch_helper_ready: bool = false
 
+const WEB_FETCH_POLL_JS := (
+	"(function(){"
+	+ "if(!window.__godot_fetch_results||!window.__godot_fetch_results.length)return '';"
+	+ "return JSON.stringify(window.__godot_fetch_results.shift());"
+	+ "})()"
+)
+
+# Fallback เมื่อ html/web_head_include.html ไม่ถูก export — ซิงก์กับไฟล์นั้น
 const WEB_FETCH_HELPER_JS := """
 window.__godot_fetch_results = window.__godot_fetch_results || [];
 window.__godotRestGet = function(url, apikey, authHeader, fetchId) {
@@ -120,6 +128,17 @@ func normalize_rows(data: Variant) -> Array:
 	return rows
 
 
+func _auth_bearer() -> String:
+	return current_access_token if current_access_token != "" else SupabaseConfig.anon_key
+
+
+func _rows_from_json_text(body_text: String) -> Array:
+	var body_json := JSON.new()
+	if body_json.parse(body_text) != OK:
+		return []
+	return normalize_rows(body_json.get_data())
+
+
 func get_primary_channel() -> String:
 	return _primary_channel
 
@@ -156,9 +175,8 @@ func leave_channel(channel_name: String) -> void:
 		set_primary_channel(RealtimeChannel.GLOBAL)
 
 
-# เพิ่มส่วนนี้เข้าไปในคลาส เพื่อคอย poll WebSocket ทุกเฟรม
+# Poll WebSocket + web fetch queue
 func _process(delta: float) -> void:
-	# --- โค้ด WebSocket เดิมปล่อยไว้ตามเดิม ---
 	if _ws != null:
 		_ws.poll()
 		var state := _ws.get_ready_state()
@@ -244,10 +262,6 @@ func send_broadcast(event_name: String, data: Dictionary, channel: String = "") 
 		connect_realtime()
 
 
-func _send_broadcast_now(event_name: String, data: Dictionary, channel: String = "") -> void:
-	_send_broadcast_http(event_name, data, channel)
-
-
 func _send_broadcast_http(event_name: String, data: Dictionary, channel: String) -> void:
 	var host := SupabaseConfig.host()
 	var url := "https://%s/realtime/v1/api/broadcast/%s/events/%s" % [
@@ -255,7 +269,7 @@ func _send_broadcast_http(event_name: String, data: Dictionary, channel: String)
 		channel.uri_encode(),
 		event_name.uri_encode(),
 	]
-	var auth_token := current_access_token if current_access_token != "" else SupabaseConfig.anon_key
+	var auth_token := _auth_bearer()
 	var headers := PackedStringArray([
 		"apikey: " + SupabaseConfig.anon_key,
 		"Authorization: Bearer " + auth_token,
@@ -263,34 +277,14 @@ func _send_broadcast_http(event_name: String, data: Dictionary, channel: String)
 	])
 	var http := HTTPRequest.new()
 	add_child(http)
-	
-	# 🌟 1. เอาฟังก์ชันมาเก็บในตัวแปร callback ก่อน ป้องกัน Parser งง
 	var callback = func(_result, response_code, _headers, body, req_node):
 		if is_instance_valid(req_node):
 			req_node.queue_free()
-		if response_code < 200 or response_code >= 300:
-			if OS.is_debug_build():
-				push_warning(
-					"Broadcast HTTP %d: %s" % [response_code, body.get_string_from_utf8()]
-				)
-				
-	# 🌟 2. เอา callback มาต่อกับ .bind(http) ตรงนี้แทน
+		if (response_code < 200 or response_code >= 300) and OS.is_debug_build():
+			push_warning("Broadcast HTTP %d: %s" % [response_code, body.get_string_from_utf8()])
 	http.request_completed.connect(callback.bind(http))
 	
 	http.request(url, headers, HTTPClient.METHOD_POST, JSON.stringify(data))
-
-
-func _flush_pending_broadcasts() -> void:
-	if not is_realtime_ready():
-		return
-	var queue := _pending_broadcasts.duplicate()
-	_pending_broadcasts.clear()
-	for item in queue:
-		_send_broadcast_now(
-			str(item.get("event", "")),
-			item.get("data", {}),
-			str(item.get("channel", _primary_channel))
-		)
 
 
 func _send_heartbeat() -> void:
@@ -373,7 +367,6 @@ func _handle_ws_text(text: String) -> void:
 					if OS.is_debug_build():
 						print("✅ Realtime joined channel: ", channel_name)
 					realtime_channel_joined.emit()
-					_flush_pending_broadcasts()
 					_flush_pending_channel_joins()
 					return
 		else:
@@ -420,7 +413,6 @@ func _emit_broadcast(event_name: String, payload: Dictionary) -> void:
 
 
 func _connect_http_callback(http: HTTPRequest, on_complete: Callable) -> void:
-	# 🌟 1. เอาฟังก์ชันมาเก็บในตัวแปร callback ก่อน
 	var callback = func(result, response_code, headers_res, body, req_node):
 		if is_instance_valid(req_node):
 			req_node.queue_free()
@@ -490,7 +482,7 @@ func sign_in(email: String, password: String, callback: Callable = Callable()) -
 func insert_data(table_name: String, data: Dictionary, callback: Callable = Callable()) -> void:
 	SupabaseConfig.ensure_loaded()
 	var url = SupabaseConfig.url + table_name
-	var auth_token = current_access_token if current_access_token != "" else SupabaseConfig.anon_key
+	var auth_token = _auth_bearer()
 	var headers = [
 		"apikey: " + SupabaseConfig.anon_key,
 		"Authorization: Bearer " + auth_token,
@@ -524,7 +516,7 @@ func fetch_data(table_name: String, query_params: String = "", callback: Callabl
 		fixed_params = fixed_params.replace('eq."', 'eq.').replace('"', '')
 
 	var url := SupabaseConfig.url + table_name + ("?" + fixed_params if fixed_params != "" else "")
-	var auth_token := current_access_token if current_access_token != "" else SupabaseConfig.anon_key
+	var auth_token := _auth_bearer()
 
 	if OS.has_feature("web"):
 		_fetch_data_browser(url, auth_token, callback)
@@ -545,7 +537,6 @@ func _fetch_data_http(url: String, auth_token: String, callback: Callable) -> vo
 	http.timeout = 20.0
 	add_child(http)
 	_connect_http_callback(http, func(result, response_code, _headers_res, body):
-		var body_text: String = body.get_string_from_utf8() if not body.is_empty() else ""
 		var response_data: Variant = _parse_json_body(body)
 		var rows := normalize_rows(response_data)
 
@@ -560,6 +551,7 @@ func _fetch_data_http(url: String, auth_token: String, callback: Callable) -> vo
 			if callback.is_valid():
 				callback.call(true, rows)
 		else:
+			var body_text: String = body.get_string_from_utf8() if not body.is_empty() else ""
 			print("❌ ดึงข้อมูลล้มเหลว (Code %d): " % response_code, body_text.left(200))
 			if callback.is_valid():
 				callback.call(false, rows)
@@ -576,41 +568,32 @@ func _ensure_web_fetch_helper() -> void:
 
 func _poll_web_fetch_results() -> void:
 	while not _web_fetch_pending.is_empty():
-		var raw_json: String = str(JavaScriptBridge.eval(
-			"(function(){"
-			+ "if(!window.__godot_fetch_results||!window.__godot_fetch_results.length)return '';"
-			+ "return JSON.stringify(window.__godot_fetch_results.shift());"
-			+ "})()",
-			true
-		))
+		var raw_json: String = str(JavaScriptBridge.eval(WEB_FETCH_POLL_JS, true))
 		if raw_json.is_empty() or raw_json == "null":
 			break
 
 		var packet_json := JSON.new()
 		if packet_json.parse(raw_json) != OK:
-			print("[BrowserFetch] queue parse fail: ", raw_json.left(120))
+			if OS.is_debug_build():
+				push_warning("[BrowserFetch] queue parse fail: %s" % raw_json.left(120))
 			break
 
 		var item: Variant = packet_json.get_data()
 		if not item is Dictionary:
-			print("[BrowserFetch] queue item not dict: ", typeof(item))
 			continue
 
 		var fetch_id: int = int(item.get("id", -1))
 		if not _web_fetch_pending.has(fetch_id):
-			print("[BrowserFetch] orphan result id=", fetch_id)
 			continue
 
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
 
 		var status: int = int(item.get("status", 0))
-		var body_text: String = str(item.get("body", ""))
-		var body_json := JSON.new()
-		body_json.parse(body_text)
-		var rows: Array = normalize_rows(body_json.get_data())
+		var rows: Array = _rows_from_json_text(str(item.get("body", "")))
 		var ok: bool = status >= 200 and status < 300
-		print("[BrowserFetch] status=", status, " rows=", rows.size(), " id=", fetch_id)
+		if OS.is_debug_build():
+			print("[BrowserFetch] status=", status, " rows=", rows.size(), " id=", fetch_id)
 		if pending.is_valid():
 			pending.call(ok, rows)
 
@@ -622,14 +605,16 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 	var fetch_id: int = _web_fetch_seq
 	_web_fetch_pending[fetch_id] = callback
 
-	print("[BrowserFetch] start id=", fetch_id, " url=", url)
+	if OS.is_debug_build():
+		print("[BrowserFetch] start id=", fetch_id)
 	var window_obj: JavaScriptObject = JavaScriptBridge.get_interface("window")
 	window_obj.call("__godotRestGet", url, SupabaseConfig.anon_key, "Bearer " + auth_token, fetch_id)
 
-	get_tree().create_timer(15.0).timeout.connect(func() -> void:
+	get_tree().create_timer(WEB_FETCH_TIMEOUT).timeout.connect(func() -> void:
 		if not _web_fetch_pending.has(fetch_id):
 			return
-		print("[BrowserFetch] timeout id=", fetch_id)
+		if OS.is_debug_build():
+			push_warning("[BrowserFetch] timeout id=%d" % fetch_id)
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
 		if pending.is_valid():
@@ -639,7 +624,7 @@ func _fetch_data_browser(url: String, auth_token: String, callback: Callable) ->
 func update_data(table: String, query: String, data: Dictionary, callback: Callable = Callable()) -> void:
 	SupabaseConfig.ensure_loaded()
 	var url = SupabaseConfig.url + table + "?" + query
-	var auth_token = current_access_token if current_access_token != "" else SupabaseConfig.anon_key
+	var auth_token = _auth_bearer()
 	var headers = [
 		"apikey: " + SupabaseConfig.anon_key,
 		"Authorization: Bearer " + auth_token,
@@ -663,3 +648,29 @@ func update_data(table: String, query: String, data: Dictionary, callback: Calla
 				callback.call(false, response_data)
 	)
 	http.request(url, headers, HTTPClient.METHOD_PATCH, JSON.stringify(data))
+
+
+func delete_data(table: String, query: String, callback: Callable = Callable()) -> void:
+	SupabaseConfig.ensure_loaded()
+	var url := SupabaseConfig.url + table + "?" + query
+	var auth_token := _auth_bearer()
+	var headers := [
+		"apikey: " + SupabaseConfig.anon_key,
+		"Authorization: Bearer " + auth_token,
+	]
+
+	var http := HTTPRequest.new()
+	add_child(http)
+	_connect_http_callback(http, func(_result, response_code, _headers_res, body):
+		if response_code >= 200 and response_code < 300:
+			if callback.is_valid():
+				callback.call(true)
+			return
+
+		var json := JSON.new()
+		json.parse(body.get_string_from_utf8())
+		print("❌ ลบข้อมูลล้มเหลว (Code %d): " % response_code, json.get_data())
+		if callback.is_valid():
+			callback.call(false)
+	)
+	http.request(url, headers, HTTPClient.METHOD_DELETE)

@@ -142,7 +142,6 @@ func refresh(player: Player) -> void:
 
 
 func _make_quest_row(quest_id: String) -> Control:
-	# 💡 ลบตัวแปร def ออกตรงนี้ เพราะไม่ได้ใช้งาน
 	var data: Dictionary = _player.active_quests[quest_id]
 	var row := Panel.new()
 	row.custom_minimum_size = Vector2(EXPANDED_SIZE.x - 40, 56)

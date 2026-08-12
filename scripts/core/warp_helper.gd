@@ -1,8 +1,6 @@
 class_name WarpHelper
 extends RefCounted
 
-const WARP_DELAY := 0.35
-
 
 static func normalize_scene_path(path: String) -> String:
 	if path == "":
@@ -14,15 +12,9 @@ static func normalize_scene_path(path: String) -> String:
 			return ProjectPaths.CAPITAL
 		"res://scenes/world.tscn", ProjectPaths.WORLD:
 			return ProjectPaths.WORLD
+		"res://scenes/maps/west_field.tscn", ProjectPaths.WEST_FIELD:
+			return ProjectPaths.WEST_FIELD
 	return path
-
-
-static func notify_ui(tree: SceneTree, destination_name: String) -> void:
-	var ui := UiAccess.get_ui(tree.root)
-	if ui and ui.has_method("show_notification"):
-		ui.show_notification("Warping to %s..." % destination_name, Color8(0x34, 0x98, 0xdb))
-	if ui and ui.has_method("add_log"):
-		ui.add_log("Warp → %s" % destination_name, Color8(0x34, 0x98, 0xdb))
 
 
 static func execute(tree: SceneTree, target_scene: String, spawn_pos: Vector2, destination_name: String, player: Player = null) -> void:
@@ -31,13 +23,27 @@ static func execute(tree: SceneTree, target_scene: String, spawn_pos: Vector2, d
 		push_warning("WarpHelper: missing target scene for %s" % destination_name)
 		return
 
-	notify_ui(tree, destination_name)
-
 	if player:
 		player.global_position = spawn_pos
 		PlayerSaveStash.stash_for_warp(player, spawn_pos, scene_path)
-		if OnlineSession.is_logged_in():
-			DatabaseManager.save_game_data(player)
+		if GlobalData.pending_revive_at_save:
+			player.hp = player.max_hp
+			player.sp = player.max_sp
 
-	await tree.create_timer(WARP_DELAY).timeout
-	tree.call_deferred("change_scene_to_file", scene_path)
+		if OnlineSession.is_logged_in():
+			await SceneTransition.fade_in("Saving to Cloud...")
+			var save_id := DatabaseManager.save_game_data(player)
+			var saved: bool = await DatabaseManager.wait_for_save_id(save_id)
+			if not saved:
+				PlayerSaveStash.clear()
+				SceneTransition.update_text("Save failed — warp cancelled")
+				await SceneTransition.fade_out()
+				return
+		else:
+			await SceneTransition.fade_in("Loading Map...")
+	else:
+		await SceneTransition.fade_in("Loading Map...")
+
+	SceneTransition.update_text("Loading %s..." % destination_name)
+	SceneTransition.prepare_fade_out_on_load()
+	tree.change_scene_to_file(scene_path)

@@ -5,7 +5,6 @@ const HUD_PANEL := Color(0.08, 0.08, 0.12, 0.85)
 const BORDER := Color8(0x7f, 0x8c, 0x8d)
 const GW := GameConstants.GAME_WIDTH
 const GH := GameConstants.GAME_HEIGHT
-const U := GameConstants.UI_WINDOW_SCALE
 
 # ui_manager.gd — สารบัญ
 # [Setup] _ready, _connect_world, _build_ui
@@ -61,11 +60,7 @@ var _target_hud_root: Panel
 var _target_name_label: Label
 var _target_hp_bar: ColorRect
 var _target_hp_text: Label
-var _stat_root: Panel
-var _stat_header: Label
-var _stat_labels: Dictionary = {}
-var _combat_stat_labels: Dictionary = {}
-var _plus_buttons: Array[Button] = []
+var _stat_panel: StatWindowPanel
 var _inv_root: Panel
 var _inventory_panel: InventoryPanel
 var _inv_slots: Array = []
@@ -155,23 +150,8 @@ func _update_player_stats_ui() -> void:
 	_xp_bar.scale.x = xp_pct
 	_xp_text.text = "%d/%d" % [player.current_exp, player.max_exp]
 	
-	if is_stat_open:
-		_stat_header.text = "Points: %d | Zeny: %d" % [player.stat_points, player.zeny]
-		for key in _stat_labels:
-			_stat_labels[key].text = str(player.get_stat(key))
-		for ckey in _combat_stat_labels:
-			var val = StatRegistry.get_derived(player, ckey)
-			if ckey == "aspd":
-				_combat_stat_labels[ckey].text = "%.2f" % float(val)
-			elif ckey == "mspd":
-				_combat_stat_labels[ckey].text = "%.1f" % float(val)
-			elif ckey == "hp":
-				_combat_stat_labels[ckey].text = "%d / %d" % [player.hp, player.max_hp]
-			else:
-				_combat_stat_labels[ckey].text = str(val)
-		var has_points := player.stat_points > 0
-		for btn in _plus_buttons:
-			btn.modulate.a = 1.0 if has_points else 0.4
+	if is_stat_open and _stat_panel:
+		_stat_panel.refresh(player)
 
 
 func _connect_world() -> void:
@@ -193,6 +173,12 @@ func _connect_world() -> void:
 func blocks_player_movement() -> bool:
 	if is_death_dialog_open:
 		return true
+		
+	# 🌟 เพิ่มการเช็กหน้าต่าง Pause Menu กลางเกม
+	var pause_menu = get_tree().root.get_node_or_null("PauseMenu")
+	if pause_menu and pause_menu.visible:
+		return true
+		
 	var chat_open := chat_log_instance != null and chat_log_instance.is_input_focused()
 	if is_npc_dialog_open or chat_open:
 		return true
@@ -200,7 +186,6 @@ func blocks_player_movement() -> bool:
 		return true
 	return is_stat_open or is_inventory_open or is_skill_open or is_party_open \
 		or is_shop_open or is_boss_open or is_map_open or is_auto_window_open
-
 
 func is_death_input_locked() -> bool:
 	return is_death_dialog_open
@@ -243,6 +228,12 @@ func _panel_screen_rect(panel: Control) -> Rect2:
 func _rect_blocks_click(pos: Vector2) -> bool:
 	if is_death_dialog_open:
 		return true
+		
+	# 🌟 เพิ่มการเช็กคลิกเมาส์บนหน้าต่าง Pause Menu กลางเกม
+	var pause_menu = get_tree().root.get_node_or_null("PauseMenu")
+	if pause_menu and pause_menu.visible:
+		return true
+		
 	var hud_rect := Rect2(GameConstants.HUD_MARGIN, GameConstants.HUD_MARGIN, GameConstants.HUD_WIDTH, GameConstants.HUD_HEIGHT)
 	if hud_rect.has_point(pos):
 		return true
@@ -267,11 +258,10 @@ func _rect_blocks_click(pos: Vector2) -> bool:
 		return true
 	return false
 
-
 func _open_window_panels() -> Array[Control]:
 	var panels: Array[Control] = []
-	if is_stat_open and _stat_root:
-		panels.append(_stat_root)
+	if is_stat_open and _stat_panel:
+		panels.append(_stat_panel)
 	if is_inventory_open:
 		if _inv_root:
 			panels.append(_inv_root)
@@ -337,8 +327,8 @@ func _layout_left_column() -> void:
 		_quest_log.is_collapsed() if _quest_log else true,
 		_chat_collapsed()
 	)
-	if is_stat_open and _stat_root:
-		_stat_root.position = Vector2(x, y)
+	if is_stat_open and _stat_panel:
+		_stat_panel.position = Vector2(x, y)
 
 
 func _layout_quest_log() -> void:
@@ -358,7 +348,6 @@ func _layout_right_column() -> void:
 	if not is_inventory_open:
 		return
 	var equip_size := GameConstants.WIN_EQUIP_SIZE
-	# 💡 ลบตัวแปร inv_size ออกตรงนี้ได้เลย เนื่องจาก UILayout จัดการคำนวณให้แล้ว
 	var spacing := float(GameConstants.UI_PANEL_GAP)
 	var start_x := UILayout.inventory_block_left()
 	var start_y := UILayout.layout_inventory_y(_chat_collapsed())
@@ -426,10 +415,6 @@ func _raise_modal_panel(panel: Control) -> void:
 		return
 	ui_root.move_child(panel, ui_root.get_child_count() - 1)
 	panel.z_index = 80
-
-
-func _u(value: float) -> int:
-	return int(value * U)
 
 
 # --- HUD build ---
@@ -1583,60 +1568,12 @@ func _use_skill_slot(slot_idx: int) -> void:
 
 
 func _build_stat_window() -> void:
-	var win_size := GameConstants.WIN_STAT_SIZE
-	var win_pos := Vector2(GameConstants.HUD_MARGIN, GameConstants.HUD_MARGIN + GameConstants.HUD_HEIGHT + 8)
-
-	_stat_root = _make_window_root(win_pos, win_size, Color8(0xf1, 0xc4, 0x0f))
-	_stat_root.visible = false
-	ui_root.add_child(_stat_root)
-
-	_add_window_title(_stat_root, "Character Stats", win_size, Color8(0xf1, 0xc4, 0x0f))
-	_add_close_button(_stat_root, win_size, _toggle_stat)
-
-	_stat_header = _make_label("Points: 0 | Zeny: 0", Vector2(14, 44), GameConstants.FONT_SM, true, UITheme.MUTED)
-	_stat_root.add_child(_stat_header)
-
-	var stats: Array = []
-	for key in StatRegistry.primary_keys():
-		stats.append([key, StatRegistry.get_label(key)])
-	var start_y := 68
-	for i in stats.size():
-		var key: String = stats[i][0]
-		var label_text: String = stats[i][1]
-		var y := start_y + i * 22
-		_stat_root.add_child(_make_label(label_text, Vector2(14, y), GameConstants.FONT_SM, true))
-		var val := _make_label("1", Vector2(56, y), GameConstants.FONT_SM, true, UITheme.GOLD)
-		_stat_labels[key] = val
-		_stat_root.add_child(val)
-
-		var plus := Button.new()
-		plus.text = "+"
-		plus.position = Vector2(win_size.x - 44, y - 2)
-		plus.custom_minimum_size = Vector2(28, 22)
-		plus.add_theme_font_size_override("font_size", GameConstants.FONT_MD)
-		plus.add_theme_stylebox_override("normal", UITheme.make_button_style(Color8(0x27, 0xae, 0x60)))
-		plus.pressed.connect(_on_stat_plus.bind(key))
-		_stat_root.add_child(plus)
-		_plus_buttons.append(plus)
-
-	var line := ColorRect.new()
-	line.position = Vector2(14, 210)
-	line.custom_minimum_size = Vector2(win_size.x - 28, 1)
-	line.color = Color8(0x55, 0x55, 0x77)
-	_stat_root.add_child(line)
-
-	var combat_stats: Array = []
-	for key in StatRegistry.derived_keys():
-		combat_stats.append([key, StatRegistry.get_label(key)])
-	var c_start_y := 220
-	for i in combat_stats.size():
-		var key: String = combat_stats[i][0]
-		var name_text: String = combat_stats[i][1]
-		var y := c_start_y + i * 16
-		_stat_root.add_child(_make_label(name_text, Vector2(14, y), GameConstants.FONT_XS, false, UITheme.MUTED))
-		var val_lbl := _make_label("0", Vector2(170, y), GameConstants.FONT_XS, true)
-		_combat_stat_labels[key] = val_lbl
-		_stat_root.add_child(val_lbl)
+	_stat_panel = StatWindowPanel.new()
+	_stat_panel.visible = false
+	_stat_panel.closed.connect(_toggle_stat)
+	# 🌟 เชื่อมสัญญาณปุ่ม Confirm แทนปุ่ม Plus
+	_stat_panel.stat_confirm_pressed.connect(_on_stat_confirm)
+	ui_root.add_child(_stat_panel)
 
 
 func _build_equipment_window() -> void:
@@ -2039,8 +1976,6 @@ func _add_bar_fill(parent: Control, pos: Vector2, color: Color) -> ColorRect:
 
 # --- Modal toggles ---
 
-# --- Modal toggles ---
-
 func _toggle_boss() -> void:
 	if _block_if_death_modal():
 		return
@@ -2071,7 +2006,7 @@ func _toggle_map() -> void:
 func _close_other_modals_except(keep: String) -> void:
 	if keep != "stat" and is_stat_open:
 		is_stat_open = false
-		_animate_window(_stat_root, false)
+		_animate_window(_stat_panel, false)
 	if keep != "inventory" and is_inventory_open:
 		is_inventory_open = false
 		_animate_window(_inv_root, false)
@@ -2104,15 +2039,23 @@ func _close_other_modals_except(keep: String) -> void:
 			_animate_window(_auto_root, false)
 
 
+func _release_modal_focus() -> void:
+	var vp := get_viewport()
+	if vp:
+		vp.gui_release_focus()
+
+
 func _toggle_stat() -> void:
 	if _block_if_death_modal():
 		return
 	is_stat_open = not is_stat_open
-	_animate_window(_stat_root, is_stat_open)
+	_animate_window(_stat_panel, is_stat_open)
 	if is_stat_open:
 		_close_other_modals_except("stat")
-		# 🌟 ดันหน้าต่างสถานะขึ้นหน้าสุด
-		_raise_modal_panel(_stat_root)
+		_raise_modal_panel(_stat_panel)
+		_update_player_stats_ui()
+	else:
+		_release_modal_focus()
 	_hide_item_tooltip()
 	_layout_open_windows()
 
@@ -2220,9 +2163,19 @@ func _update_party_ui(members: Array) -> void:
 
 		_party_list_container.add_child(card)
 
-func _on_stat_plus(stat_key: String) -> void:
-	if player:
-		player.spend_stat_point(stat_key)
+func _on_stat_confirm(pending_stats: Dictionary) -> void:
+	if not player or not player.has_method("confirm_stat_allocation"):
+		if _stat_panel and _stat_panel.has_method("release_confirm_lock"):
+			_stat_panel.release_confirm_lock()
+		return
+
+	var save_id: int = player.confirm_stat_allocation(pending_stats)
+	if save_id > 0:
+		await DatabaseManager.wait_for_save_id(save_id)
+	if _stat_panel:
+		if _stat_panel.has_method("release_confirm_lock"):
+			_stat_panel.release_confirm_lock()
+		_stat_panel.refresh(player)
 
 
 func _quick_slot_index_at(screen_pos: Vector2) -> int:
@@ -2319,6 +2272,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_stat"):
 		_toggle_stat()
 		get_viewport().set_input_as_handled()
+		return
 	elif event.is_action_pressed("toggle_inventory"):
 		_toggle_inventory()
 		get_viewport().set_input_as_handled()
@@ -2406,23 +2360,8 @@ func _process(_delta: float) -> void:
 		if _target_hud_root:
 			_target_hud_root.visible = false
 
-	if is_stat_open:
-		_stat_header.text = "Points: %d | Zeny: %d" % [player.stat_points, player.zeny]
-		for key in _stat_labels:
-			_stat_labels[key].text = str(player.get_stat(key))
-		for ckey in _combat_stat_labels:
-			var val = StatRegistry.get_derived(player, ckey)
-			if ckey == "aspd":
-				_combat_stat_labels[ckey].text = "%.2f" % float(val)
-			elif ckey == "mspd":
-				_combat_stat_labels[ckey].text = "%.1f" % float(val)
-			elif ckey == "hp":
-				_combat_stat_labels[ckey].text = "%d / %d" % [player.hp, player.max_hp]
-			else:
-				_combat_stat_labels[ckey].text = str(val)
-		var has_points := player.stat_points > 0
-		for btn in _plus_buttons:
-			btn.modulate.a = 1.0 if has_points else 0.4
+	if is_stat_open and _stat_panel and player:
+		_stat_panel.refresh(player)
 
 
 # --- Public API ---
@@ -2560,12 +2499,9 @@ func _animate_window(window: Control, is_opening: bool) -> void:
 
 
 func refresh_inventory_and_equipment_ui() -> void:
-	if has_method("_update_inventory_ui"):
-		_update_inventory_ui()
-	if has_method("_update_equipment_ui"):
-		_update_equipment_ui()
-	if has_method("_update_quick_slot_ui"):
-		_update_quick_slot_ui()
+	_update_inventory_ui()
+	_update_equipment_ui()
+	_update_quick_slot_ui()
 
 func _build_auto_window() -> void:
 	var win_size := Vector2(340, 300)

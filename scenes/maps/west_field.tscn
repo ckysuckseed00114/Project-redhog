@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://dw3stf1eld01"]
+
+[ext_resource type="Script" path="res://scripts/world/west_field.gd" id="1_west"]
+[ext_resource type="PackedScene" uid="uid://j3jdh55wn3l2" path="res://scenes/objects/portal.tscn" id="2_portal"]
+[ext_resource type="Script" uid="uid://cwb5xxavik2l8" path="res://scripts/managers/monster_manager.gd" id="3_mobs"]
+[ext_resource type="Script" uid="uid://bmh6nglj68jdl" path="res://scripts/world/world_effects.gd" id="4_fx"]
+
+[node name="WestField" type="Node2D"]
+script = ExtResource("1_west")
+
+[node name="Portal" parent="." groups=["portal"] instance=ExtResource("2_portal")]
+position = Vector2(1264, 400)
+target_scene = "uid://ckcae4kmkro5q"
+destination_name = "Capital City"
+spawn_position = Vector2(80, 400)
+
+[node name="Ground" type="Sprite2D" parent="."]
+
+[node name="Monsters" type="Node2D" parent="."]
+script = ExtResource("3_mobs")
+
+[node name="WorldEffects" type="Node2D" parent="."]
+script = ExtResource("4_fx")

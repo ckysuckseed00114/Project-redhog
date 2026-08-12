@@ -4,7 +4,6 @@ var player_name: String = "Novice"
 var player_class: String = "novice"
 var player_gender: String = "male"
 
-# 🌟 เพิ่มตัวแปรเก็บพิกัดตอนล็อกอิน
 var spawn_x: float = 0.0
 var spawn_y: float = 0.0
 var has_saved_position: bool = false
@@ -30,11 +29,46 @@ func remember_created_character(data: Dictionary) -> void:
 	pending_created_character = data.duplicate(true)
 
 
-func take_pending_created_character() -> Dictionary:
-	var data := pending_created_character.duplicate(true)
-	pending_created_character = {}
-	return data
+func forget_character(deleted_id: String) -> void:
+	if str(pending_created_character.get("character_id", "")) == deleted_id:
+		pending_created_character = {}
+	if character_id == deleted_id:
+		character_id = ""
+		player_name = "Novice"
+		player_class = "novice"
+		player_gender = "male"
+		current_slot_index = 0
 
+
+func apply_pending_character_to(player: Player) -> bool:
+	if player == null or pending_created_character.is_empty():
+		return false
+	if str(pending_created_character.get("character_id", "")) != character_id:
+		return false
+
+	var row := pending_created_character
+	player_name = str(row.get("name", player_name))
+	player_gender = str(row.get("gender", player_gender))
+	player_class = str(row.get("current_job", player_class))
+	player.current_job = player_class
+	player.level = int(row.get("level", player.level))
+	player.current_exp = int(row.get("current_exp", player.current_exp))
+	player.max_exp = int(row.get("max_exp", player.max_exp))
+	player.stat_points = int(row.get("stat_points", player.stat_points))
+	player.max_hp = int(row.get("max_hp", player.max_hp))
+	player.hp = int(row.get("hp", player.max_hp))
+	player.max_sp = int(row.get("max_sp", player.max_sp))
+	player.sp = int(row.get("sp", player.max_sp))
+	player.str_stat = int(row.get("str_stat", player.str_stat))
+	player.agi = int(row.get("agi", player.agi))
+	player.vit = int(row.get("vit", player.vit))
+	player.int_stat = int(row.get("int_stat", player.int_stat))
+	player.dex = int(row.get("dex", player.dex))
+	player.luk = int(row.get("luk", player.luk))
+	player.zeny = int(row.get("zeny", player.zeny))
+	StatRegistry.recalculate_max_hp(player)
+	StatRegistry.recalculate_max_sp(player)
+	return true
 
 func merge_character_rows(fetched: Array, user_id: String) -> Array:
 	var merged: Dictionary = {}
@@ -93,12 +127,6 @@ func take_warp_spawn_position() -> Variant:
 	has_saved_position = false
 	pending_warp_scene = ""
 	return Vector2(spawn_x, spawn_y)
-
-
-func take_pending_warp_scene() -> String:
-	var scene := pending_warp_scene
-	pending_warp_scene = ""
-	return scene
 
 
 func activate_warp_grace(duration_sec: float = 2.0) -> void:

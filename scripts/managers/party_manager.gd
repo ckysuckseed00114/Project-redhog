@@ -122,20 +122,6 @@ func fetch_party_data() -> void:
 	)
 
 
-func invite_player(target_character_name: String) -> void:
-	if current_party_id == "":
-		create_party()
-	var target_id := ""
-	if OnlinePresenceManager:
-		target_id = OnlinePresenceManager.find_character_id_by_name(target_character_name)
-	if target_id != "":
-		PartySync.send_invite(current_party_id, target_id, GlobalData.player_name)
-	print("📨 ส่งคำเชิญปาร์ตี้ไปให้: ", target_character_name)
-	var ui = UiAccess.get_ui(self)
-	if ui and ui.has_method("show_notification"):
-		ui.show_notification("Invited " + target_character_name + " to party!", Color8(0x34, 0x98, 0xdb))
-
-
 func is_in_party() -> bool:
 	return current_party_id != ""
 

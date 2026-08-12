@@ -95,6 +95,12 @@ target_scene = "uid://cbkkx7cktbxvv"
 destination_name = "Training Field"
 spawn_position = Vector2(638, 80)
 
+[node name="PortalWest" parent="." groups=["portal"] instance=ExtResource("2_pjic3")]
+position = Vector2(16, 400)
+target_scene = "res://scenes/maps/west_field.tscn"
+destination_name = "West Field"
+spawn_position = Vector2(1240, 400)
+
 [node name="Ground" type="Sprite2D" parent="." unique_id=1992098597]
 
 [node name="quest board" parent="." unique_id=430187628 instance=ExtResource("3_6njqs")]

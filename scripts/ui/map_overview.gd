@@ -15,7 +15,8 @@ const COLOR_NAME_IDLE := Color(0.75, 0.75, 0.8)
 # id ต้องตรงกับ ProjectPaths.MAP_ID_* (เรียงบน → ล่าง)
 const MAP_REGIONS := [
 	{"id": ProjectPaths.MAP_ID_CAPITAL, "name": "Capital"},
-	{"id": ProjectPaths.MAP_ID_WORLD, "name": "South Capital"},
+	{"id": ProjectPaths.MAP_ID_WEST_FIELD, "name": "West Field"},
+	{"id": ProjectPaths.MAP_ID_WORLD, "name": "South Field"},
 ]
 
 

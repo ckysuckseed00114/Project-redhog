@@ -47,6 +47,7 @@ func _ready() -> void:
 		attack_cooldown = data.get("attack_cooldown", 1.5)
 		
 		scale = data.get("scale", Vector2.ONE)
+		_apply_creature_sprite(data)
 		
 	chase_range_sq = chase_range * chase_range
 	attack_range_sq = attack_range * attack_range
@@ -57,6 +58,20 @@ func _ready() -> void:
 	_reset_wander()
 	set_process(false)
 	call_deferred("_refresh_hitboxes")
+
+
+func _apply_creature_sprite(data: Dictionary) -> void:
+	var creature := str(data.get("creature", ""))
+	if creature.is_empty() or not is_instance_valid(sprite):
+		return
+	var frames := MonsterSpriteLoader.build_sprite_frames(creature)
+	if frames.get_animation_names().is_empty():
+		return
+	sprite.sprite_frames = frames
+	sprite.scale = MonsterSpriteLoader.get_sprite_scale(frames)
+	sprite.centered = false
+	sprite.offset = Vector2(-10, -10)
+	sprite.position = Vector2(-13.5, -12)
 
 
 func _refresh_hitboxes() -> void:
@@ -277,8 +292,17 @@ func update_ai(delta: float, player: Node2D, player_pos: Vector2, time_sec: floa
 		if wander_timer <= 0.0:
 			_reset_wander()
 
+	# 🌟 1. เก็บพิกัดก่อนเดิน (แก้จุดที่ตัวแปรหายไป)
+	var pos_before := global_position
+
 	velocity = wander_dir * speed
 	move_and_slide()
+	
+	global_position.x = clampf(global_position.x, 20, GameConstants.MAP_WORLD_WIDTH - 20)
+	global_position.y = clampf(global_position.y, 20, GameConstants.MAP_WORLD_HEIGHT - 20)
+
+	# 🌟 2. เช็กว่าขยับจริงไหม
+	var actually_moved := global_position.distance_squared_to(pos_before) > 0.01
 
 	if wander_dir.x != 0:
 		sprite.flip_h = wander_dir.x < 0
@@ -286,15 +310,18 @@ func update_ai(delta: float, player: Node2D, player_pos: Vector2, time_sec: floa
 		sprite.flip_h = player_pos.x < my_pos.x
 
 	if sprite.animation != "attack" and sprite.animation != "hurt":
-		if wander_dir != Vector2.ZERO:
+		# 🌟 3. ใช้ actually_moved เป็นตัวตัดสินใจเปลี่ยนแอนิเมชันเดินหรือยืน
+		if actually_moved:
 			if sprite.sprite_frames.has_animation("walking") and sprite.animation != "walking":
 				sprite.play("walking")
 		else:
 			if sprite.sprite_frames.has_animation("idle") and sprite.animation != "idle":
 				sprite.play("idle")
-
-	global_position.x = clampf(global_position.x, 20, GameConstants.MAP_WORLD_WIDTH - 20)
-	global_position.y = clampf(global_position.y, 20, GameConstants.MAP_WORLD_HEIGHT - 20)
+			
+			# ความฉลาดของ AI: ถ้ามันเดินสุ่มไปติดกำแพง ให้มันสุ่มทิศทางใหม่ทันที
+			if not (is_aggressive or is_provoked) or dist_sq >= chase_range_sq:
+				if wander_dir != Vector2.ZERO:
+					_reset_wander()
 
 func _process(_delta: float) -> void:
 	if is_selected and is_active_monster:

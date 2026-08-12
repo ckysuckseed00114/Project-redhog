@@ -22,14 +22,6 @@ func is_online() -> bool:
 	return is_logged_in() and has_character()
 
 
-func user_id() -> String:
-	return SupabaseClient.current_user_id
-
-
-func character_id() -> String:
-	return GlobalData.character_id
-
-
 func connect_realtime() -> void:
 	if is_logged_in():
 		SupabaseClient.connect_realtime()

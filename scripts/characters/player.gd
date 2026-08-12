@@ -32,12 +32,12 @@ var max_job_exp: int = 50 # 🌟 เพิ่ม Max Job EXP
 var skill_levels: Dictionary = {}
 var has_dealt_damage: bool = false
 
-var str_stat: int = 1
-var agi: int = 1
-var vit: int = 1
-var int_stat: int = 1
-var dex: int = 1
-var luk: int = 1
+var str_stat: int = 5
+var agi: int = 5
+var vit: int = 5
+var int_stat: int = 5
+var dex: int = 5
+var luk: int = 5
 
 var inventory: Array = []
 var quick_slots: Array = []
@@ -76,6 +76,8 @@ var auto_potion_sp_pct: float = 0.30
 
 var auto_save_timer: Timer
 
+const MAX_HURT_LOCKOUT := 0.35
+
 # player.gd — สารบัญ: Setup | Visuals | Stats/Job | Combat | Inventory | Movement | Input
 
 # --- Setup ---
@@ -96,14 +98,23 @@ func _ready() -> void:
 	_init_quick_slots()
 	apply_job_visuals(current_job, GlobalData.player_gender)
 	_apply_class_stats(current_job)
-	call_deferred("reveal_from_load")
-	call_deferred("_apply_pending_revive_spawn")
 
-	if OnlineSession.is_online():
+	# Warp stash มีความจริงสูงสุด — ไม่ดึง Cloud ทับหลัง warp
+	if PlayerSaveStash.has_pending():
+		PlayerSaveStash.apply_to_player(self)
+		call_deferred("reveal_from_load")
+	elif OnlineSession.is_online():
 		DatabaseManager.load_game_data(self)
-		if not SupabaseClient.realtime_channel_joined.is_connected(_on_realtime_channel_joined):
-			SupabaseClient.realtime_channel_joined.connect(_on_realtime_channel_joined)
-		call_deferred("_sync_presence_now")
+	else:
+		if GlobalData.apply_pending_character_to(self):
+			apply_job_visuals(current_job, GlobalData.player_gender)
+			stats_changed.emit()
+		call_deferred("reveal_from_load")
+		if GlobalData.pending_revive_at_save:
+			call_deferred("_apply_pending_revive_spawn")
+			if not SupabaseClient.realtime_channel_joined.is_connected(_on_realtime_channel_joined):
+				SupabaseClient.realtime_channel_joined.connect(_on_realtime_channel_joined)
+			call_deferred("_sync_presence_now")
 		
 	auto_save_timer = Timer.new()
 	auto_save_timer.wait_time = 180.0
@@ -207,6 +218,62 @@ func _play_sprite_anim(anim_name: String) -> bool:
 		return false
 	sprite.play(anim_name)
 	return true
+
+
+func _resolve_walk_animation() -> String:
+	match direction:
+		"down":
+			if _has_sprite_anim("walking_down"):
+				sprite.flip_v = false
+				return "walking_down"
+		"down_right", "down_left":
+			if _has_sprite_anim("walking_down_right"):
+				sprite.flip_v = false
+				return "walking_down_right"
+		"up":
+			if _has_sprite_anim("walking_up"):
+				sprite.flip_v = false
+				return "walking_up"
+			if _has_sprite_anim("walking_down"):
+				sprite.flip_v = true
+				return "walking_down"
+		"up_right", "up_left":
+			if _has_sprite_anim("walking_up_right"):
+				sprite.flip_v = false
+				return "walking_up_right"
+		"left", "right":
+			if _has_sprite_anim("walking_side"):
+				sprite.flip_v = false
+				return "walking_side"
+	if _has_sprite_anim("walking"):
+		sprite.flip_v = false
+		return "walking"
+	return "idle"
+
+
+func _apply_facing_flip() -> void:
+	match direction:
+		"left", "down_left", "up_left":
+			sprite.flip_h = true
+		"right", "down_right", "up_right":
+			sprite.flip_h = false
+
+
+func _play_movement_animation(moving: bool) -> void:
+	if not moving:
+		sprite.flip_v = false
+		if not _play_sprite_anim("idle"):
+			_play_sprite_anim("walking")
+		return
+	_apply_facing_flip()
+	var anim_name := _resolve_walk_animation()
+	if _has_sprite_anim(anim_name):
+		if sprite.animation != anim_name or not sprite.is_playing():
+			sprite.play(anim_name)
+
+
+func _play_idle_or_walk() -> void:
+	_play_movement_animation(is_moving or velocity.length_squared() > 0.01)
 
 # --- Job ---
 
@@ -443,7 +510,9 @@ func _add_job_exp(amount: int) -> void:
 func take_damage(amount: int) -> void:
 	if is_dead:
 		return
-		
+
+	_resolve_pending_attack_hit()
+
 	hp = maxi(0, hp - amount)
 	stats_changed.emit()
 	
@@ -456,6 +525,13 @@ func take_damage(amount: int) -> void:
 	
 	if hp == 0:
 		_die()
+
+
+func _resolve_pending_attack_hit() -> void:
+	if not is_attacking or sprite.animation != "attack" or has_dealt_damage:
+		return
+	if sprite.frame >= _attack_hit_frame:
+		execute_melee_hit()
 
 func _cancel_attack(clear_pending: bool = false) -> void:
 	is_attacking = false
@@ -480,7 +556,7 @@ func _get_hurt_duration() -> float:
 		var frame_count := sprite.sprite_frames.get_frame_count("hurt")
 		var fps := sprite.sprite_frames.get_animation_speed("hurt")
 		if fps > 0.0:
-			return float(frame_count) / fps
+			return minf(float(frame_count) / fps, MAX_HURT_LOCKOUT)
 	return 0.25
 
 func _on_hurt_finished() -> void:
@@ -492,9 +568,9 @@ func _on_hurt_finished() -> void:
 	if _try_resume_interrupted_attack():
 		return
 	if velocity == Vector2.ZERO:
-		_play_sprite_anim("idle")
+		_play_movement_animation(false)
 	else:
-		_play_sprite_anim("walking")
+		_play_movement_animation(true)
 
 func _try_resume_interrupted_attack() -> bool:
 	if pending_attack_target == null or not is_instance_valid(pending_attack_target):
@@ -548,32 +624,49 @@ func revive_at_save_point() -> bool:
 	var current := ""
 	if tree.current_scene:
 		current = WarpHelper.normalize_scene_path(tree.current_scene.scene_file_path)
-		
-	var ui := UiAccess.get_ui(self)
-	if ui and ui.has_method("close_death_dialog"):
-		ui.close_death_dialog()
-		
+
 	if current == WarpHelper.normalize_scene_path(save_scene):
-		_finish_revive(save_pos)
+		restore_after_save_point_revive(save_pos)
 		return true
-		
+
 	GlobalData.pending_revive_at_save = true
-	
-	# 🌟 ใช้ WarpHelper.execute เพื่อให้ระบบ Stash ทำงาน ป้องกัน Cloud ดึงข้อมูลเก่ามาทับ
 	var dest_name = SavePointService.get_display_name()
 	WarpHelper.execute(tree, save_scene, save_pos, dest_name, self)
-	
 	return true
 
 
-func _finish_revive(pos: Vector2) -> void:
+func restore_after_save_point_revive(pos: Vector2 = global_position) -> void:
 	global_position = pos
-	
-	# 🌟 --- แก้ไขให้ฟื้นมาแล้วเลือดกับมานาได้คืนแค่ 50% --- 🌟
+	hp = max_hp
+	sp = max_sp
+	is_dead = false
+	is_attacking = false
+	is_hurt = false
+	set_physics_process(true)
+	set_process(true)
+	visible = true
+	modulate = Color.WHITE
+	if sprite:
+		sprite.modulate = Color(1, 1, 1, 1)
+		_play_sprite_anim("idle")
+	stats_changed.emit()
+	var ui := UiAccess.get_ui(self)
+	if ui:
+		if ui.has_method("close_death_dialog"):
+			ui.close_death_dialog()
+		if ui.has_method("_update_player_stats_ui"):
+			ui._update_player_stats_ui()
+		if ui.has_method("show_notification"):
+			ui.show_notification("ฟื้นชีพที่จุดเซฟ", Color8(0x2e, 0xcc, 0x71))
+
+
+func _finish_revive(pos: Vector2, restore_full: bool = false) -> void:
+	if restore_full:
+		restore_after_save_point_revive(pos)
+		return
+	global_position = pos
 	hp = maxi(1, int(float(max_hp) * 0.5))
 	sp = maxi(1, int(float(max_sp) * 0.5))
-	# 🌟 ------------------------------------------- 🌟
-	
 	is_dead = false
 	is_attacking = false
 	is_hurt = false
@@ -584,6 +677,8 @@ func _finish_revive(pos: Vector2) -> void:
 	var ui := UiAccess.get_ui(self)
 	if ui and ui.has_method("close_death_dialog"):
 		ui.close_death_dialog()
+	if ui and ui.has_method("_update_player_stats_ui"):
+		ui._update_player_stats_ui()
 	if ui and ui.has_method("show_notification"):
 		ui.show_notification("ฟื้นชีพแล้ว!", Color8(0x2e, 0xcc, 0x71))
 
@@ -592,18 +687,34 @@ func _apply_pending_revive_spawn() -> void:
 	if not GlobalData.pending_revive_at_save:
 		return
 	GlobalData.pending_revive_at_save = false
-	
-	hp = maxi(1, int(float(max_hp) * 0.5))
-	sp = maxi(1, int(float(max_sp) * 0.5))
-	
-	is_dead = false
-	stats_changed.emit()
-	var ui := UiAccess.get_ui(self)
-	if ui and ui.has_method("show_notification"):
-		ui.show_notification("ฟื้นชีพที่จุดเซฟ", Color8(0x2e, 0xcc, 0x71))
+	restore_after_save_point_revive()
 
+# วางทับฟังก์ชัน spend_stat_point เดิม และเพิ่มฟังก์ชัน confirm_stat_allocation ต่อท้าย
 func spend_stat_point(stat_key: String) -> bool:
+	# ปิดการเซฟอัตโนมัติรายคลิก
 	return StatRegistry.spend_point(self, stat_key)
+
+func confirm_stat_allocation(pending_stats: Dictionary) -> int:
+	var total_spent = 0
+	for key in pending_stats.keys():
+		total_spent += int(pending_stats[key])
+	if total_spent <= 0 or stat_points < total_spent:
+		return -1
+		
+	for key in pending_stats.keys():
+		var count = int(pending_stats[key])
+		if count > 0 and StatRegistry.PRIMARY.has(key):
+			var field: String = StatRegistry.PRIMARY[key]
+			set(field, int(get(field)) + count)
+			if key == "vit":
+				StatRegistry.recalculate_max_hp(self)
+			stat_points -= count
+			
+	stats_changed.emit()
+
+	if OnlineSession.is_logged_in():
+		return DatabaseManager.save_game_data(self)
+	return 0
 
 func get_stat(stat_key: String) -> int:
 	return StatRegistry.get_primary(self, stat_key)
@@ -782,15 +893,14 @@ func _on_player_animation_frame_changed() -> void:
 
 func _on_player_attack_finished() -> void:
 	if sprite.animation == "attack":
+		if not has_dealt_damage:
+			execute_melee_hit()
 		is_attacking = false
 		sprite.speed_scale = 1.0
 		_disconnect_attack_signals()
 		
 		if not is_dead:
-			if velocity == Vector2.ZERO:
-				_play_sprite_anim("idle")
-			else:
-				_play_sprite_anim("walking")
+			_play_movement_animation(velocity.length_squared() > 0.01)
 
 func _disconnect_attack_signals() -> void:
 	if sprite.frame_changed.is_connected(_on_player_animation_frame_changed):
@@ -844,6 +954,27 @@ func execute_melee_hit() -> void:
 
 # --- Movement ---
 
+const DIAGONAL_BLEND := 0.45
+
+
+func _resolve_move_direction(move_vec: Vector2) -> String:
+	var ax := absf(move_vec.x)
+	var ay := absf(move_vec.y)
+	if ax < 0.01 and ay < 0.01:
+		return direction
+	if ax > 0.01 and ay > 0.01 and minf(ax, ay) / maxf(ax, ay) >= DIAGONAL_BLEND:
+		if move_vec.x > 0.0 and move_vec.y > 0.0:
+			return "down_right"
+		if move_vec.x < 0.0 and move_vec.y > 0.0:
+			return "down_left"
+		if move_vec.x > 0.0 and move_vec.y < 0.0:
+			return "up_right"
+		return "up_left"
+	if ax > ay:
+		return "right" if move_vec.x > 0.0 else "left"
+	return "down" if move_vec.y > 0.0 else "up"
+
+
 func apply_velocity(vx: float, vy: float) -> void:
 	if is_dead or is_attacking or is_hurt or is_talking:
 		velocity = Vector2.ZERO
@@ -854,30 +985,38 @@ func apply_velocity(vx: float, vy: float) -> void:
 	if move_vec.length() > 0.0:
 		move_vec = move_vec.normalized()
 		velocity = move_vec * get_movement_speed()
-		is_moving = true
 		
-		if absf(move_vec.x) > absf(move_vec.y):
-			direction = "right" if move_vec.x > 0 else "left"
-			sprite.flip_h = (direction == "right") # 🌟 เปลี่ยนจากเดิมที่เป็น "left" ให้เป็น "right"
+		direction = _resolve_move_direction(move_vec)
+		
+		# 🌟 1. เก็บพิกัดก่อนเดิน
+		var pos_before := global_position
+		
+		# 🌟 2. เดินจริง และล็อกขอบจอ
+		move_and_slide()
+		global_position.x = clampf(global_position.x, 8, GameConstants.MAP_WORLD_WIDTH - 8)
+		global_position.y = clampf(global_position.y, 8, GameConstants.MAP_WORLD_HEIGHT - 8)
+		
+		# 🌟 3. เช็กว่าตัวละครขยับจริงไหม? (ถ้าไม่ขยับแปลว่าชนขอบ/กำแพง)
+		if global_position.distance_squared_to(pos_before) < 0.01:
+			if is_moving:
+				is_moving = false
+				sprite.stop()
+				_play_movement_animation(false)
+				sprite.frame = 0
 		else:
-			direction = "down" if move_vec.y > 0 else "up"
-		
-		var anim_name = "walking"
-		if _has_sprite_anim(anim_name):
-			if sprite.animation != anim_name or not sprite.is_playing():
-				sprite.play(anim_name)
+			is_moving = true
+			_play_movement_animation(true)
 	else:
 		velocity = Vector2.ZERO
+		move_and_slide()
+		global_position.x = clampf(global_position.x, 8, GameConstants.MAP_WORLD_WIDTH - 8)
+		global_position.y = clampf(global_position.y, 8, GameConstants.MAP_WORLD_HEIGHT - 8)
+		
 		if is_moving:
 			is_moving = false
 			sprite.stop()
-			if not _play_sprite_anim("idle"):
-				_play_sprite_anim("walking")
+			_play_movement_animation(false)
 			sprite.frame = 0
-			
-	move_and_slide()
-	global_position.x = clampf(global_position.x, 8, GameConstants.MAP_WORLD_WIDTH - 8)
-	global_position.y = clampf(global_position.y, 8, GameConstants.MAP_WORLD_HEIGHT - 8)
 
 func _flash_level_up() -> void:
 	var flash := camera.get_node_or_null("FlashOverlay")

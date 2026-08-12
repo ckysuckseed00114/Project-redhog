@@ -1,8 +1,6 @@
 [gd_scene format=3 uid="uid://b5cdqedu7wjq5"]
 
-[ext_resource type="Script" uid="uid://btey8p8xwki7c" path="res://scripts/ui/charactercreation.gd" id="1_1y33a"]
-[ext_resource type="Texture2D" uid="uid://btck0mumhk8ns" path="res://animation/player/male/PNG/PNG Sequences/Idle/0_Fallen_Angels_Idle_000.png" id="2_p4177"]
-[ext_resource type="Texture2D" uid="uid://bt4krssqhkfbp" path="res://animation/player/female/PNG/PNG Sequences/Idle/0_Fallen_Angels_Idle_000.png" id="3_wre3l"]
+[ext_resource type="Script" uid="uid://btey8p8xwki7c" path="res://scripts/ui/charactercreation.gd" id="1_script"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 bg_color = Color(0.0666667, 0.054902, 0.054902, 0.98)
@@ -20,7 +18,9 @@ shadow_size = 20
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input"]
 content_margin_left = 14.0
+content_margin_top = 8.0
 content_margin_right = 14.0
+content_margin_bottom = 8.0
 bg_color = Color(0.121569, 0.0980392, 0.0980392, 1)
 border_width_left = 1
 border_width_top = 1
@@ -32,14 +32,21 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn"]
-bg_color = Color(0.75, 0.12, 0.12, 1)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_create"]
+bg_color = Color(0.266667, 0.678431, 0.376471, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_alt"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_create_disabled"]
+bg_color = Color(0.266667, 0.266667, 0.290196, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_back"]
 bg_color = Color(0.18, 0.14, 0.14, 1)
 border_width_left = 1
 border_width_top = 1
@@ -51,104 +58,200 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
-[node name="charactercreation" type="Control" unique_id=439894336]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stat_panel"]
+bg_color = Color(0.0627451, 0.054902, 0.0784314, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.831373, 0.686275, 0.215686, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[node name="CharacterCreation" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_1y33a")
+script = ExtResource("1_script")
 
-[node name="Background" type="ColorRect" parent="." unique_id=581359215]
+[node name="Background" type="ColorRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 color = Color(0.02, 0.02, 0.02, 1)
 
-[node name="CenterContainer" type="CenterContainer" parent="." unique_id=1748593896]
+[node name="CenterContainer" type="CenterContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 25.0
-offset_top = -64.0
-offset_right = -35.0
-offset_bottom = 76.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="MainPanel" type="PanelContainer" parent="CenterContainer" unique_id=1968689815]
-custom_minimum_size = Vector2(420, 410)
+[node name="MainPanel" type="PanelContainer" parent="CenterContainer"]
+custom_minimum_size = Vector2(880, 420)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
-[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/MainPanel" unique_id=1829561300]
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/MainPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 32
-theme_override_constants/margin_top = 32
-theme_override_constants/margin_right = 32
-theme_override_constants/margin_bottom = 32
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/MainPanel/MarginContainer" unique_id=262340331]
+[node name="RootVBox" type="VBoxContainer" parent="CenterContainer/MainPanel/MarginContainer"]
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="TitleLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=179894756]
+[node name="TitleLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/RootVBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.78, 0.25, 1)
 theme_override_font_sizes/font_size = 22
 text = "⚔️ เลือกตัวละครและตั้งชื่อ"
 horizontal_alignment = 1
 
-[node name="HSeparator" type="HSeparator" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=242995139]
+[node name="HSeparator" type="HSeparator" parent="CenterContainer/MainPanel/MarginContainer/RootVBox"]
 layout_mode = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=635237520]
+[node name="ContentHBox" type="HBoxContainer" parent="CenterContainer/MainPanel/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 28
+alignment = 0
+
+[node name="IdentityColumn" type="VBoxContainer" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox"]
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 12
+
+[node name="GenderRow" type="HBoxContainer" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/IdentityColumn"]
 layout_mode = 2
 alignment = 1
 
-[node name="malebutton" type="TextureButton" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer/HBoxContainer" unique_id=318998531]
+[node name="MaleButton" type="TextureButton" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/IdentityColumn/GenderRow"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(70, 70)
 layout_mode = 2
-texture_normal = ExtResource("2_p4177")
 ignore_texture_size = true
 stretch_mode = 5
 
-[node name="Control" type="Control" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer/HBoxContainer" unique_id=1228113387]
+[node name="Spacer" type="Control" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/IdentityColumn/GenderRow"]
 custom_minimum_size = Vector2(20, 0)
 layout_mode = 2
 
-[node name="femalebutton" type="TextureButton" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer/HBoxContainer" unique_id=492038028]
+[node name="FemaleButton" type="TextureButton" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/IdentityColumn/GenderRow"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(70, 70)
 layout_mode = 2
-texture_normal = ExtResource("3_wre3l")
 ignore_texture_size = true
 stretch_mode = 5
 
-[node name="lineedit" type="LineEdit" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=1315075937]
+[node name="NameInput" type="LineEdit" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/IdentityColumn"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_input")
 placeholder_text = "กรอกชื่อตัวละครที่นี่..."
 alignment = 1
+max_length = 24
 
-[node name="button" type="Button" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=568264407]
+[node name="CreateButton" type="Button" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/IdentityColumn"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
-text = "เริ่มเกมการผจญภัย"
+theme_override_colors/font_color = Color(0.6, 0.6, 0.67, 1)
+theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_create_disabled")
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_create_disabled")
+text = "สร้างตัวละคร"
 
-[node name="BackButton" type="Button" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=987654321]
+[node name="BackButton" type="Button" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/IdentityColumn"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.78, 0.25, 1)
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_alt")
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_back")
 text = "ย้อนกลับไปหน้าเลือกตัวละคร"
 
-[node name="StatusLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/VBoxContainer" unique_id=1967417234]
+[node name="StatusLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/IdentityColumn"]
+unique_name_in_owner = true
 layout_mode = 2
 horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="StatPanel" type="PanelContainer" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_stat_panel")
+
+[node name="StatMargin" type="MarginContainer" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="StatVBox" type="VBoxContainer" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StatHeaderRow" type="HBoxContainer" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="StatTitleLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox/StatHeaderRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.945098, 0.768627, 0.0588235, 1)
+theme_override_font_sizes/font_size = 14
+text = "⚔️ Stat Allocation"
+
+[node name="StatHintLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox/StatHeaderRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.67, 1)
+theme_override_font_sizes/font_size = 12
+text = "Base 5 · Min 1 · Max 10"
+
+[node name="RemainingLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.945098, 0.768627, 0.0588235, 1)
+theme_override_font_sizes/font_size = 14
+text = "Free Points: 5"
+horizontal_alignment = 1
+
+[node name="StatMainRow" type="HBoxContainer" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="RadarHost" type="Control" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox/StatMainRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 200)
+layout_mode = 2
+
+[node name="StatGrid" type="GridContainer" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox/StatMainRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 8
+columns = 3
+
+[node name="LegendLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.67, 1)
+theme_override_font_sizes/font_size = 12
+text = "Lower stats refund · Raise stats spend · Use all 5 Free Points"
+horizontal_alignment = 1
+autowrap_mode = 2
