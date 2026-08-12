@@ -199,35 +199,35 @@ func _sync_related_tables(payload: Dictionary, done: Callable) -> void:
 	var char_id: String = str(payload.get("character_id", ""))
 	var eq_query := "character_id=eq." + char_id.uri_encode()
 	SupabaseClient.delete_data("player_equipment", eq_query, func(_eq_del_ok: bool) -> void:
-		_insert_equipment_records(payload, func(eq_ok: bool) -> void:
+		_upsert_equipment_records(payload, func(eq_ok: bool) -> void:
 			if not eq_ok:
 				done.call(false)
 				return
 			var inv_query := "character_id=eq." + char_id.uri_encode()
 			SupabaseClient.delete_data("player_inventory", inv_query, func(_inv_del_ok: bool) -> void:
-				_insert_inventory_records(payload, done)
+				_upsert_inventory_records(payload, done)
 			)
 		)
 	)
 
 
-func _insert_equipment_records(payload: Dictionary, done: Callable) -> void:
+func _upsert_equipment_records(payload: Dictionary, done: Callable) -> void:
 	var records: Array = payload.get("equipment_records", [])
 	if records.is_empty():
 		done.call(true)
 		return
-	_wait_for_inserts(records, "player_equipment", done)
+	_wait_for_upserts(records, "player_equipment", done)
 
 
-func _insert_inventory_records(payload: Dictionary, done: Callable) -> void:
+func _upsert_inventory_records(payload: Dictionary, done: Callable) -> void:
 	var records: Array = payload.get("inventory_records", [])
 	if records.is_empty():
 		done.call(true)
 		return
-	_wait_for_inserts(records, "player_inventory", done)
+	_wait_for_upserts(records, "player_inventory", done)
 
 
-func _wait_for_inserts(records: Array, table: String, done: Callable) -> void:
+func _wait_for_upserts(records: Array, table: String, done: Callable) -> void:
 	var remaining_count: Array[int] = [records.size()]
 	var failed_flag: Array[bool] = [false]
 	
@@ -238,14 +238,26 @@ func _wait_for_inserts(records: Array, table: String, done: Callable) -> void:
 				done.call(not failed_flag[0])
 			continue
 			
-		SupabaseClient.insert_data(table, record, func(ok: bool, _res: Variant) -> void:
-			if not ok:
-				failed_flag[0] = true
-			remaining_count[0] -= 1
-			if remaining_count[0] <= 0:
-				done.call(not failed_flag[0])
+		var char_id := str(record.get("character_id", "")).uri_encode()
+		var query := "character_id=eq." + char_id
+		if table == "player_equipment":
+			query += "&slot_key=eq." + str(record.get("slot_key", "")).uri_encode()
+		else:
+			query += "&slot_index=eq." + str(record.get("slot_index", "")).uri_encode()
+		SupabaseClient.insert_data(table, record, func(ins_ok: bool, _res: Variant) -> void:
+			if ins_ok:
+				remaining_count[0] -= 1
+				if remaining_count[0] <= 0:
+					done.call(not failed_flag[0])
+			else:
+				SupabaseClient.update_data(table, query, record, func(upd_ok: bool, _res2: Variant) -> void:
+					if not upd_ok:
+						failed_flag[0] = true
+					remaining_count[0] -= 1
+					if remaining_count[0] <= 0:
+						done.call(not failed_flag[0])
+				)
 		)
-# --- Load ---
 
 func _apply_player_stats_from_row(p: Player, row: Dictionary) -> void:
 	p.stat_points = _db_int(row.get("stat_points", 0))
