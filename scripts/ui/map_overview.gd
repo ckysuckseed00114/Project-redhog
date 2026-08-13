@@ -3,8 +3,7 @@ extends Control
 
 var world: Node2D
 
-const PADDING := 8.0
-const GAP := 10.0
+const MAP_BOX_SIZE := Vector2(130, 60)
 
 const COLOR_BOX := Color(0.06, 0.06, 0.08, 0.95)
 const COLOR_BOX_BORDER := Color(0.22, 0.22, 0.28, 1.0)
@@ -12,11 +11,11 @@ const COLOR_ACTIVE := Color(0.10, 0.12, 0.18, 1.0)
 const COLOR_PLAYER := Color8(0x2e, 0xcc, 0x71)
 const COLOR_NAME_IDLE := Color(0.75, 0.75, 0.8)
 
-# id ต้องตรงกับ ProjectPaths.MAP_ID_* (เรียงบน → ล่าง)
+# id ต้องตรงกับ ProjectPaths.MAP_ID_* และ root node ของ scene
 const MAP_REGIONS := [
-	{"id": ProjectPaths.MAP_ID_CAPITAL, "name": "Capital"},
-	{"id": ProjectPaths.MAP_ID_WEST_FIELD, "name": "West Field"},
-	{"id": ProjectPaths.MAP_ID_WORLD, "name": "South Field"},
+	{"id": ProjectPaths.MAP_ID_WEST_FIELD, "name": "West Field", "pos": Vector2(16, 24)},
+	{"id": ProjectPaths.MAP_ID_CAPITAL, "name": "Capital", "pos": Vector2(166, 24)},
+	{"id": ProjectPaths.MAP_ID_WORLD, "name": "South Field", "pos": Vector2(166, 104)},
 ]
 
 
@@ -32,18 +31,14 @@ func _get_current_map_id() -> String:
 	return str(root.name) if root else ""
 
 
-func _region_rect(index: int) -> Rect2:
-	var inner_w := size.x - PADDING * 2.0
-	var inner_h := size.y - PADDING * 2.0
-	var box_h := (inner_h - GAP * float(MAP_REGIONS.size() - 1)) / float(MAP_REGIONS.size())
-	var y := PADDING + index * (box_h + GAP)
-	return Rect2(PADDING, y, inner_w, box_h)
+func _region_rect(region: Dictionary) -> Rect2:
+	return Rect2(region.get("pos", Vector2.ZERO), MAP_BOX_SIZE)
 
 
 func _draw() -> void:
 	var current_id := _get_current_map_id()
-	for i in MAP_REGIONS.size():
-		_draw_region(MAP_REGIONS[i], _region_rect(i), current_id == str(MAP_REGIONS[i]["id"]))
+	for region in MAP_REGIONS:
+		_draw_region(region, _region_rect(region), current_id == str(region["id"]))
 
 
 func _draw_region(region: Dictionary, rect: Rect2, is_here: bool) -> void:

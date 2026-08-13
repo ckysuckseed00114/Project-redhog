@@ -165,7 +165,7 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 6
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
-text = "1280 x 720 (HD)"
+text = "1920 x 1080 (Full HD)"
 
 [node name="Res_2" type="Button" parent="SettingsPanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 20)
@@ -173,15 +173,7 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 6
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
-text = "2560 x 1440 (2x HD)"
-
-[node name="Res_3" type="Button" parent="SettingsPanel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
-theme_override_font_sizes/font_size = 6
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
-theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
-text = "3840 x 2160 (4K)"
+text = "2560 x 1440 (QHD)"
 
 [node name="Fullscreen" type="Button" parent="SettingsPanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 20)
@@ -203,8 +195,7 @@ text = "ย้อนกลับ (Back)"
 [connection signal="pressed" from="Panel/VBoxContainer/ตั้งค่า" to="." method="_on_settings_pressed"]
 [connection signal="pressed" from="Panel/VBoxContainer/เลือกตัวละคร" to="." method="_on_character_selection_pressed"]
 [connection signal="pressed" from="Panel/VBoxContainer/ออกจากระบบ" to="." method="_on_login_pressed"]
-[connection signal="pressed" from="SettingsPanel/VBoxContainer/Res_1" to="." method="_on_res_960_pressed"]
+[connection signal="pressed" from="SettingsPanel/VBoxContainer/Res_1" to="." method="_on_res_1080_pressed"]
 [connection signal="pressed" from="SettingsPanel/VBoxContainer/Res_2" to="." method="_on_res_1440_pressed"]
-[connection signal="pressed" from="SettingsPanel/VBoxContainer/Res_3" to="." method="_on_res_1920_pressed"]
 [connection signal="pressed" from="SettingsPanel/VBoxContainer/Fullscreen" to="." method="_on_fullscreen_pressed"]
 [connection signal="pressed" from="SettingsPanel/VBoxContainer/Back" to="." method="_on_settings_back_pressed"]

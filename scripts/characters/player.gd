@@ -99,6 +99,9 @@ func _ready() -> void:
 	apply_job_visuals(current_job, GlobalData.player_gender)
 	_apply_class_stats(current_job)
 
+	if camera:
+		camera.zoom = Vector2(1.5, 1.5)
+
 	# Warp stash มีความจริงสูงสุด — ไม่ดึง Cloud ทับหลัง warp
 	if PlayerSaveStash.has_pending():
 		PlayerSaveStash.apply_to_player(self)

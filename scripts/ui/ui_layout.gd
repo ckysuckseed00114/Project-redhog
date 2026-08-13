@@ -1,7 +1,7 @@
 class_name UILayout
 extends RefCounted
 
-# ui_layout.gd — คำนวณตำแหน่ง UI ทั้งหมด (1280×720)
+# ui_layout.gd — คำนวณตำแหน่ง UI ทั้งหมด (1920×1080)
 
 const SKILL_SLOT_SIZE := 36
 const SKILL_SLOT_GAP := 4
@@ -57,7 +57,7 @@ static func online_label_pos() -> Vector2:
 
 
 static func notification_base_y() -> float:
-	return 74.0
+	return 110.0
 
 
 static func inventory_block_width() -> float:

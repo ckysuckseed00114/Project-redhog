@@ -245,37 +245,30 @@ func _on_settings_back_pressed() -> void:
 	main_panel.visible = true
 
 
-func _set_window_resolution(scale_multiplier: int) -> void:
-	var target_width = GameConstants.GAME_WIDTH * scale_multiplier
-	var target_height = GameConstants.GAME_HEIGHT * scale_multiplier
-
+func _set_window_size(target_size: Vector2i) -> void:
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-	DisplayServer.window_set_size(Vector2i(target_width, target_height))
+	DisplayServer.window_set_size(target_size)
 
-	var current_screen = DisplayServer.window_get_current_screen()
-	var screen_size = DisplayServer.screen_get_size(current_screen)
-	var screen_pos = DisplayServer.screen_get_position(current_screen)
-	var center_offset = (screen_size - Vector2i(target_width, target_height)) / 2.0
-	DisplayServer.window_set_position(screen_pos + Vector2i(center_offset))
+	var current_screen := DisplayServer.window_get_current_screen()
+	var screen_size := DisplayServer.screen_get_size(current_screen)
+	var screen_pos := DisplayServer.screen_get_position(current_screen)
+	var center_offset := (screen_size - target_size) / 2
+	DisplayServer.window_set_position(screen_pos + center_offset)
 
 
-func _on_res_960_pressed() -> void:
-	_set_window_resolution(1)
+func _on_res_1080_pressed() -> void:
+	_set_window_size(Vector2i(1920, 1080))
 
 
 func _on_res_1440_pressed() -> void:
-	_set_window_resolution(2)
-
-
-func _on_res_1920_pressed() -> void:
-	_set_window_resolution(3)
+	_set_window_size(Vector2i(2560, 1440))
 
 
 func _on_fullscreen_pressed() -> void:
-	var mode = DisplayServer.window_get_mode()
+	var mode := DisplayServer.window_get_mode()
 	if mode == DisplayServer.WINDOW_MODE_FULLSCREEN or mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-		_set_window_resolution(1)
+		_set_window_size(Vector2i(1920, 1080))
 	else:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 

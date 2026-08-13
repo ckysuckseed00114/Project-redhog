@@ -2396,8 +2396,9 @@ func _on_chat_received(sender_name: String, text: String) -> void:
 
 func show_notification(message: String, banner_color: Color = Color8(0xf1, 0xc4, 0x0f)) -> void:
 	_active_notifications = _active_notifications.filter(func(t): return is_instance_valid(t))
+	var toast_w := GameConstants.TOAST_WIDTH
 	var toast := Panel.new()
-	toast.custom_minimum_size = Vector2(360, 40)
+	toast.custom_minimum_size = Vector2(toast_w, 40)
 	toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	toast.z_index = 200 
 	
@@ -2419,11 +2420,11 @@ func show_notification(message: String, banner_color: Color = Color8(0xf1, 0xc4,
 	lbl.add_theme_constant_override("outline_size", 2)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.custom_minimum_size = Vector2(360, 40)
+	lbl.custom_minimum_size = Vector2(toast_w, 40)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	toast.add_child(lbl)
 	
-	var start_x = int((GW - 360) / 2.0)
+	var start_x = int((GW - toast_w) / 2.0)
 	var base_y = UILayout.notification_base_y()
 	var offset_y = _active_notifications.size() * 44.0
 	toast.position = Vector2(start_x, base_y + offset_y)
