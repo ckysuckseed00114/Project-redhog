@@ -6,7 +6,7 @@ signal party_invite_received(inviter_name: String, party_id: String)
 const FALLBACK_SYNC_SEC := 30.0
 
 var current_party_id: String = ""
-var party_members: Array = []
+var party_members: Array[Dictionary] = []
 var sync_timer: Timer
 
 
@@ -112,7 +112,10 @@ func fetch_party_data() -> void:
 	var query = "party_id=eq." + current_party_id
 	SupabaseClient.fetch_data("players", query, func(success, response):
 		if success and response is Array:
-			party_members = response
+			party_members.clear()
+			for row in response:
+				if row is Dictionary:
+					party_members.append(row)
 			if party_members.is_empty():
 				party_members = [get_local_player_member()]
 			party_updated.emit(party_members)
@@ -144,7 +147,10 @@ func _apply_party_update(payload: Dictionary) -> void:
 		return
 	var members: Variant = payload.get(RealtimeEvents.KEY_MEMBERS, [])
 	if members is Array:
-		party_members = members
+		party_members.clear()
+		for row in members:
+			if row is Dictionary:
+				party_members.append(row)
 		if party_members.is_empty():
 			party_members = [get_local_player_member()]
 		party_updated.emit(party_members)

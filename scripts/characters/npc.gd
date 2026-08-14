@@ -153,9 +153,18 @@ func _resolve_foot_ui_position() -> Vector2:
 
 # --- Interaction ---
 
-func _process(_delta: float) -> void:
-	_update_foot_ui()
-	queue_redraw()
+var _interact_timer: float = 0.0
+
+const INTERACT_CHECK_INTERVAL := 0.12
+
+
+func _process(delta: float) -> void:
+	_interact_timer += delta
+	if _interact_timer >= INTERACT_CHECK_INTERVAL:
+		_interact_timer = 0.0
+		_update_foot_ui()
+	if _foot_ui_visible:
+		queue_redraw()
 
 func _draw() -> void:
 	if not _foot_ui_visible:

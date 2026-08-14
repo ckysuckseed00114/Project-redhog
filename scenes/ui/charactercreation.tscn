@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://b5cdqedu7wjq5"]
 
 [ext_resource type="Script" uid="uid://btey8p8xwki7c" path="res://scripts/ui/charactercreation.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/ui/character_creation_stats.gd" id="2_stats"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 bg_color = Color(0.0666667, 0.054902, 0.054902, 0.98)
@@ -221,14 +222,13 @@ text = "⚔️ Stat Allocation"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.6, 0.67, 1)
 theme_override_font_sizes/font_size = 12
-text = "Base 5 · Min 1 · Max 10"
+text = "Base 5 · Min 1 · Max 9 · Opposing pairs"
 
-[node name="RemainingLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox"]
-unique_name_in_owner = true
+[node name="BalanceLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.945098, 0.768627, 0.0588235, 1)
 theme_override_font_sizes/font_size = 14
-text = "Free Points: 5"
+text = "Total Stats: 30 (always balanced)"
 horizontal_alignment = 1
 
 [node name="StatMainRow" type="HBoxContainer" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox"]
@@ -236,22 +236,17 @@ layout_mode = 2
 theme_override_constants/separation = 16
 alignment = 1
 
-[node name="RadarHost" type="Control" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox/StatMainRow"]
+[node name="StatsPanel" type="Control" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox/StatMainRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 200)
+custom_minimum_size = Vector2(420, 260)
 layout_mode = 2
-
-[node name="StatGrid" type="GridContainer" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox/StatMainRow"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/h_separation = 10
-theme_override_constants/v_separation = 8
-columns = 3
+size_flags_horizontal = 3
+script = ExtResource("2_stats")
 
 [node name="LegendLabel" type="Label" parent="CenterContainer/MainPanel/MarginContainer/RootVBox/ContentHBox/StatPanel/StatMargin/StatVBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.6, 0.67, 1)
 theme_override_font_sizes/font_size = 12
-text = "Lower stats refund · Raise stats spend · Use all 5 Free Points"
+text = "Click stat buttons on the hexagon · STR↔INT · AGI↔LUK · VIT↔DEX"
 horizontal_alignment = 1
 autowrap_mode = 2

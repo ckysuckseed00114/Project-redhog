@@ -56,7 +56,11 @@ NPC Quest Board (F)
 |----------|-----------|
 | รับ / ส่งเควส | `QuestService.save_quests()` → `DatabaseManager.save_game_data()` |
 | Warp แมพ | `WarpHelper` → `GlobalData.stash_quest_state()` + save ถ้า login |
+| Auto-save | `player.gd` timer 180s → `save_game_data()` |
 | Load ตัวละคร | `DatabaseManager._apply_quests_after_load()` |
+
+> `save_game_data()` coalesce snapshot ล่าสุด — เรียกถี่ๆ จากหลาย event ไม่ยิง Supabase ซ้ำทุกครั้ง  
+> ดูรายละเอียด: [`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md) → Supabase / Cloud Save
 
 ## QuestService API
 

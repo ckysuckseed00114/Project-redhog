@@ -8,6 +8,7 @@ const WS_PROTOCOL_VERSION := "2.0.0"
 const BINARY_BROADCAST := 0x04
 const WEB_SESSION_PATH := "user://web_session.cfg"
 const WEB_FETCH_TIMEOUT := 15.0
+const DEFAULT_HTTP_TIMEOUT := 20.0
 
 var current_user_id: String = ""
 var current_access_token: String = ""
@@ -412,16 +413,43 @@ func _emit_broadcast(event_name: String, payload: Dictionary) -> void:
 	broadcast_received.emit(emit_data)
 
 
-func _connect_http_callback(http: HTTPRequest, on_complete: Callable) -> void:
-	var callback = func(result, response_code, headers_res, body, req_node):
-		if is_instance_valid(req_node):
-			req_node.queue_free()
-		if not is_instance_valid(self) or not is_inside_tree():
+func _connect_http_callback(http: HTTPRequest, on_complete: Callable, timeout_sec: float = DEFAULT_HTTP_TIMEOUT) -> void:
+	http.timeout = timeout_sec
+	var finished := [false]
+	var callback = func(result: int, response_code: int, headers_res: PackedStringArray, body: PackedByteArray) -> void:
+		if finished[0]:
+			return
+		finished[0] = true
+		if is_instance_valid(http):
+			http.queue_free()
+		if not is_instance_valid(self):
 			return
 		if on_complete.is_valid():
 			on_complete.call(result, response_code, headers_res, body)
-			
-	http.request_completed.connect(callback.bind(http))
+	http.request_completed.connect(callback, CONNECT_ONE_SHOT)
+
+
+func _dispatch_http(
+	url: String,
+	headers: PackedStringArray,
+	method: HTTPClient.Method,
+	body: String,
+	on_complete: Callable,
+	timeout_sec: float = DEFAULT_HTTP_TIMEOUT
+) -> void:
+	var http := HTTPRequest.new()
+	add_child(http)
+	_connect_http_callback(http, on_complete, timeout_sec)
+	var err := http.request(url, headers, method, body)
+	if err != OK:
+		push_warning("Supabase HTTP request failed to start (%s): %s" % [url, error_string(err)])
+		http.queue_free()
+		if on_complete.is_valid():
+			on_complete.call(HTTPRequest.RESULT_CANT_CONNECT, 0, PackedStringArray(), PackedByteArray())
+
+
+func _http_succeeded(result: int, response_code: int) -> bool:
+	return result == HTTPRequest.RESULT_SUCCESS and response_code >= 200 and response_code < 300
 
 
 func sign_up(email: String, password: String, callback: Callable = Callable()) -> void:
@@ -432,24 +460,22 @@ func sign_up(email: String, password: String, callback: Callable = Callable()) -
 		"Content-Type: application/json"
 	]
 	var body_data = {"email": email, "password": password}
-
-	var http = HTTPRequest.new()
-	add_child(http)
-	_connect_http_callback(http, func(_result, response_code, _headers_res, body):
-		var json = JSON.new()
-		json.parse(body.get_string_from_utf8())
-		var response_data = json.get_data()
-
-		if response_code >= 200 and response_code < 300:
-			print("✅ สมัครสมาชิกสำเร็จ: ", response_data)
-			if callback.is_valid():
-				callback.call(true, response_data)
-		else:
-			print("❌ สมัครสมาชิกไม่สำเร็จ (Code %d): " % response_code, response_data)
-			if callback.is_valid():
-				callback.call(false, response_data)
+	_dispatch_http(
+		url,
+		PackedStringArray(headers),
+		HTTPClient.METHOD_POST,
+		JSON.stringify(body_data),
+		func(result: int, response_code: int, _headers_res: PackedStringArray, body: PackedByteArray) -> void:
+			var response_data: Variant = _parse_json_body(body)
+			if _http_succeeded(result, response_code):
+				print("✅ สมัครสมาชิกสำเร็จ: ", response_data)
+				if callback.is_valid():
+					callback.call(true, response_data)
+			else:
+				print("❌ สมัครสมาชิกไม่สำเร็จ (result=%d code=%d): " % [result, response_code], response_data)
+				if callback.is_valid():
+					callback.call(false, response_data)
 	)
-	http.request(url, headers, HTTPClient.METHOD_POST, JSON.stringify(body_data))
 
 
 func sign_in(email: String, password: String, callback: Callable = Callable()) -> void:
@@ -460,23 +486,23 @@ func sign_in(email: String, password: String, callback: Callable = Callable()) -
 		"Content-Type: application/json"
 	]
 	var body_data = {"email": email, "password": password}
-
-	var http = HTTPRequest.new()
-	add_child(http)
-	_connect_http_callback(http, func(_result, response_code, _headers_res, body):
-		var response_data: Variant = _parse_json_body(body)
-
-		if response_code >= 200 and response_code < 300 and _apply_auth_response(response_data):
-			print("✅ ล็อกอินสำเร็จ! User ID: ", current_user_id)
-			connect_realtime()
-			if callback.is_valid():
-				callback.call(true, response_data)
-		else:
-			print("❌ ล็อกอินไม่สำเร็จ (Code %d): " % response_code, response_data)
-			if callback.is_valid():
-				callback.call(false, response_data)
+	_dispatch_http(
+		url,
+		PackedStringArray(headers),
+		HTTPClient.METHOD_POST,
+		JSON.stringify(body_data),
+		func(result: int, response_code: int, _headers_res: PackedStringArray, body: PackedByteArray) -> void:
+			var response_data: Variant = _parse_json_body(body)
+			if _http_succeeded(result, response_code) and _apply_auth_response(response_data):
+				print("✅ ล็อกอินสำเร็จ! User ID: ", current_user_id)
+				connect_realtime()
+				if callback.is_valid():
+					callback.call(true, response_data)
+			else:
+				print("❌ ล็อกอินไม่สำเร็จ (result=%d code=%d): " % [result, response_code], response_data)
+				if callback.is_valid():
+					callback.call(false, response_data)
 	)
-	http.request(url, headers, HTTPClient.METHOD_POST, JSON.stringify(body_data))
 
 
 func insert_data(table_name: String, data: Dictionary, callback: Callable = Callable()) -> void:
@@ -490,22 +516,21 @@ func insert_data(table_name: String, data: Dictionary, callback: Callable = Call
 		"Prefer: return=representation"
 	]
 
-	var http = HTTPRequest.new()
-	add_child(http)
-	_connect_http_callback(http, func(_result, response_code, _headers_res, body):
-		var json = JSON.new()
-		json.parse(body.get_string_from_utf8())
-		var response_data = json.get_data()
-
-		if response_code >= 200 and response_code < 300:
-			if callback.is_valid():
-				callback.call(true, response_data)
-		else:
-			print("❌ บันทึกข้อมูลล้มเหลว (Code %d): " % response_code, response_data)
-			if callback.is_valid():
-				callback.call(false, response_data)
+	_dispatch_http(
+		url,
+		PackedStringArray(headers),
+		HTTPClient.METHOD_POST,
+		JSON.stringify(data),
+		func(result: int, response_code: int, _headers_res: PackedStringArray, body: PackedByteArray) -> void:
+			var response_data: Variant = _parse_json_body(body)
+			if _http_succeeded(result, response_code):
+				if callback.is_valid():
+					callback.call(true, response_data)
+			else:
+				print("❌ บันทึกข้อมูลล้มเหลว (result=%d code=%d): " % [result, response_code], response_data)
+				if callback.is_valid():
+					callback.call(false, response_data)
 	)
-	http.request(url, headers, HTTPClient.METHOD_POST, JSON.stringify(data))
 
 
 func fetch_data(table_name: String, query_params: String = "", callback: Callable = Callable()) -> void:
@@ -532,11 +557,7 @@ func _fetch_data_http(url: String, auth_token: String, callback: Callable) -> vo
 		"Accept: application/json",
 		"Accept-Encoding: identity",
 	])
-
-	var http := HTTPRequest.new()
-	http.timeout = 20.0
-	add_child(http)
-	_connect_http_callback(http, func(result, response_code, _headers_res, body):
+	_dispatch_http(url, headers, HTTPClient.METHOD_GET, "", func(result: int, response_code: int, _headers_res: PackedStringArray, body: PackedByteArray) -> void:
 		var response_data: Variant = _parse_json_body(body)
 		var rows := normalize_rows(response_data)
 
@@ -546,7 +567,7 @@ func _fetch_data_http(url: String, auth_token: String, callback: Callable) -> vo
 				callback.call(false, rows)
 			return
 
-		if response_code >= 200 and response_code < 300:
+		if _http_succeeded(result, response_code):
 			print("✅ fetch OK status=", response_code, " rows=", rows.size())
 			if callback.is_valid():
 				callback.call(true, rows)
@@ -555,8 +576,7 @@ func _fetch_data_http(url: String, auth_token: String, callback: Callable) -> vo
 			print("❌ ดึงข้อมูลล้มเหลว (Code %d): " % response_code, body_text.left(200))
 			if callback.is_valid():
 				callback.call(false, rows)
-	)
-	http.request(url, headers, HTTPClient.METHOD_GET)
+	, DEFAULT_HTTP_TIMEOUT)
 
 
 func _ensure_web_fetch_helper() -> void:
@@ -632,22 +652,21 @@ func update_data(table: String, query: String, data: Dictionary, callback: Calla
 		"Prefer: return=representation"
 	]
 
-	var http = HTTPRequest.new()
-	add_child(http)
-	_connect_http_callback(http, func(_result, response_code, _headers_res, body):
-		var json = JSON.new()
-		json.parse(body.get_string_from_utf8())
-		var response_data = json.get_data()
-
-		if response_code >= 200 and response_code < 300:
-			if callback.is_valid():
-				callback.call(true, response_data)
-		else:
-			print("❌ อัปเดตข้อมูลล้มเหลว (Code %d): " % response_code, response_data)
-			if callback.is_valid():
-				callback.call(false, response_data)
+	_dispatch_http(
+		url,
+		PackedStringArray(headers),
+		HTTPClient.METHOD_PATCH,
+		JSON.stringify(data),
+		func(result: int, response_code: int, _headers_res: PackedStringArray, body: PackedByteArray) -> void:
+			var response_data: Variant = _parse_json_body(body)
+			if _http_succeeded(result, response_code):
+				if callback.is_valid():
+					callback.call(true, response_data)
+			else:
+				print("❌ อัปเดตข้อมูลล้มเหลว (result=%d code=%d): " % [result, response_code], response_data)
+				if callback.is_valid():
+					callback.call(false, response_data)
 	)
-	http.request(url, headers, HTTPClient.METHOD_PATCH, JSON.stringify(data))
 
 
 func delete_data(table: String, query: String, callback: Callable = Callable()) -> void:
@@ -659,18 +678,18 @@ func delete_data(table: String, query: String, callback: Callable = Callable()) 
 		"Authorization: Bearer " + auth_token,
 	]
 
-	var http := HTTPRequest.new()
-	add_child(http)
-	_connect_http_callback(http, func(_result, response_code, _headers_res, body):
-		if response_code >= 200 and response_code < 300:
+	_dispatch_http(
+		url,
+		PackedStringArray(headers),
+		HTTPClient.METHOD_DELETE,
+		"",
+		func(result: int, response_code: int, _headers_res: PackedStringArray, body: PackedByteArray) -> void:
+			if _http_succeeded(result, response_code):
+				if callback.is_valid():
+					callback.call(true)
+				return
+			var response_data: Variant = _parse_json_body(body)
+			print("❌ ลบข้อมูลล้มเหลว (result=%d code=%d): " % [result, response_code], response_data)
 			if callback.is_valid():
-				callback.call(true)
-			return
-
-		var json := JSON.new()
-		json.parse(body.get_string_from_utf8())
-		print("❌ ลบข้อมูลล้มเหลว (Code %d): " % response_code, json.get_data())
-		if callback.is_valid():
-			callback.call(false)
+				callback.call(false)
 	)
-	http.request(url, headers, HTTPClient.METHOD_DELETE)

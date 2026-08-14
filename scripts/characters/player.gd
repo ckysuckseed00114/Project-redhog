@@ -100,7 +100,7 @@ func _ready() -> void:
 	_apply_class_stats(current_job)
 
 	if camera:
-		camera.zoom = Vector2(1.5, 1.5)
+		camera.zoom = Vector2(5.5, 5.5)
 
 	# Warp stash มีความจริงสูงสุด — ไม่ดึง Cloud ทับหลัง warp
 	if PlayerSaveStash.has_pending():
@@ -841,6 +841,68 @@ func equip_item_from_inventory(inv_index: int) -> bool:
 
 	return false
 
+func equip_inventory_to_slot(inv_index: int, slot_key: String) -> bool:
+	if is_dead or inv_index < 0 or inv_index >= inventory.size():
+		return false
+	var item = inventory[inv_index]
+	if item == null or str(item.get("type", "")) != slot_key:
+		return false
+	if not equipment.has(slot_key):
+		return false
+	var prev = equipment[slot_key]
+	equipment[slot_key] = item
+	inventory[inv_index] = prev
+	inventory_changed.emit()
+	equipment_changed.emit()
+	return true
+
+
+func move_equipment_to_inventory(slot_key: String, inv_index: int) -> bool:
+	if is_dead or not equipment.has(slot_key) or inv_index < 0 or inv_index >= inventory.size():
+		return false
+	var equipped = equipment[slot_key]
+	if equipped == null:
+		return false
+	var target = inventory[inv_index]
+	if target == null:
+		inventory[inv_index] = equipped
+		equipment[slot_key] = null
+	elif str(target.get("type", "")) == slot_key:
+		equipment[slot_key] = target
+		inventory[inv_index] = equipped
+	else:
+		return false
+	inventory_changed.emit()
+	equipment_changed.emit()
+	return true
+
+
+func swap_inventory_slots(a: int, b: int) -> bool:
+	if a == b or a < 0 or b < 0 or a >= inventory.size() or b >= inventory.size():
+		return false
+	var tmp = inventory[a]
+	inventory[a] = inventory[b]
+	inventory[b] = tmp
+	inventory_changed.emit()
+	return true
+
+
+func swap_equipment_slots(a: String, b: String) -> bool:
+	if is_dead or a == b or not equipment.has(a) or not equipment.has(b):
+		return false
+	var item_a = equipment[a]
+	if item_a == null or str(item_a.get("type", "")) != b:
+		return false
+	var item_b = equipment[b]
+	if item_b != null and str(item_b.get("type", "")) != a:
+		return false
+	equipment[a] = item_b
+	equipment[b] = item_a
+	inventory_changed.emit()
+	equipment_changed.emit()
+	return true
+
+
 func unequip_item(slot_key: String) -> bool:
 	if is_dead or not equipment.has(slot_key) or equipment[slot_key] == null:
 		return false
@@ -1077,7 +1139,7 @@ func cast_first_aid() -> void:
 		return
 		
 	if sp < skill_data["sp_cost"]:
-		var ui = get_tree().get_first_node_in_group("ui")
+		var ui := UiAccess.get_ui(self)
 		if ui and ui.has_method("add_log"):
 			ui.add_log("SP ไม่พอสำหรับ First Aid!", Color8(0xe7, 0x4c, 0x3c))
 		return

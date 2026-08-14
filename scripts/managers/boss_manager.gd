@@ -6,6 +6,14 @@ const BOSS_ID := "big_poring"
 
 var active_boss: Node = null
 var _world: World = null
+var _timer_refresh_accum: float = 0.0
+
+const TIMER_REFRESH_INTERVAL := 0.5
+
+
+func _ready() -> void:
+	if WorldSyncManager:
+		WorldSyncManager.boss_state_changed.connect(_refresh_timer)
 
 
 func register_world(world: World) -> void:
@@ -20,11 +28,14 @@ func unregister_world() -> void:
 	active_boss = null
 
 
-func _process(_delta: float) -> void:
-	WorldSyncManager.tick_global(_delta)
+func _process(delta: float) -> void:
+	WorldSyncManager.tick_global(delta)
 	if _world and is_instance_valid(_world):
-		WorldSyncManager.tick_world(_delta)
-	_refresh_timer()
+		WorldSyncManager.tick_world(delta)
+	_timer_refresh_accum += delta
+	if _timer_refresh_accum >= TIMER_REFRESH_INTERVAL:
+		_timer_refresh_accum = 0.0
+		_refresh_timer()
 
 
 func _refresh_timer() -> void:

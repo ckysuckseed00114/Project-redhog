@@ -4,11 +4,13 @@ extends Node
 
 signal save_completed(success: bool)
 
-var _save_queue: Array[Dictionary] = []
+var _queued_payload: Dictionary = {}
+var _queued_save_ids: Array[int] = []
 var _save_running: bool = false
-var _last_payload: Dictionary = {}
 var _next_save_id: int = 0
 var _save_results: Dictionary = {}
+
+const SAVE_TIMEOUT_SEC := 45.0
 
 
 func _db_int(value: Variant, default_val: int = 0) -> int:
@@ -37,25 +39,32 @@ func _emit_save_completed(success: bool) -> void:
 
 # --- Save ---
 
-func save_game_data(player) -> int:
-	var payload := _capture_payload(player)
-	if payload.is_empty():
-		call_deferred("_emit_save_completed", false)
-		return -1
+# ตัวอย่างโค้ดใน database_manager.gd
 
-	_last_payload = payload
-
+func save_game_data(player: Player) -> int:
 	if not _can_cloud_save():
-		call_deferred("_emit_save_completed", true)
 		return 0
 
 	_next_save_id += 1
+	var payload := _capture_payload(player)
+	if payload.is_empty():
+		return 0
+
 	var save_id := _next_save_id
 	payload["save_id"] = save_id
-	_save_queue.append(payload)
+	_queued_save_ids.append(save_id)
+	_queued_payload = payload
+
 	if not _save_running:
 		_run_next_save()
+
 	return save_id
+
+func _on_inventory_saved(success: bool, _response: Variant) -> void:
+	if success:
+		print("✅ กระเป๋าเซฟสำเร็จ ไม่มี Error กวนใจ!")
+	else:
+		print("❌ เซฟกระเป๋าไม่สำเร็จ")
 
 
 func wait_for_save_id(save_id: int) -> bool:
@@ -69,14 +78,19 @@ func wait_for_save_id(save_id: int) -> bool:
 
 
 func _run_next_save() -> void:
-	if _save_queue.is_empty():
+	if _queued_payload.is_empty():
 		_save_running = false
 		return
 
 	_save_running = true
-	var payload: Dictionary = _save_queue.pop_front()
-	var save_id: int = int(payload.get("save_id", 0))
+	var payload: Dictionary = _queued_payload
+	var save_ids: Array[int] = _queued_save_ids.duplicate()
+	_queued_payload = {}
+	_queued_save_ids.clear()
+
 	_persist_payload(payload, func(success: bool) -> void:
+		if not is_instance_valid(self):
+			return
 		if success:
 			print("✅ บันทึกตำแหน่งและสถานะตัวละครสำเร็จ")
 			if is_inside_tree():
@@ -85,11 +99,20 @@ func _run_next_save() -> void:
 					ui.show_notification("Game Saved to Cloud!", Color8(0x2e, 0xcc, 0x71))
 		else:
 			push_warning("❌ Cloud save failed")
-		if save_id > 0:
-			_save_results[save_id] = success
-		_emit_save_completed(success)
-		_run_next_save()
+		_resolve_save_ids(save_ids, success)
+		if not _queued_payload.is_empty():
+			_run_next_save()
+		else:
+			_save_running = false
 	)
+
+
+func _resolve_save_ids(save_ids: Array[int], success: bool) -> void:
+	for save_id in save_ids:
+		if save_id <= 0:
+			continue
+		_save_results[save_id] = success
+		_emit_save_completed(success)
 
 
 func _capture_payload(player: Player) -> Dictionary:
@@ -177,34 +200,68 @@ func _persist_payload(payload: Dictionary, done: Callable) -> void:
 	var char_id: String = str(payload.get("character_id", ""))
 	var player_row: Dictionary = payload.get("player_row", {})
 	if char_id == "" or player_row.is_empty():
-		done.call(false)
+		_safe_done(done, false)
 		return
+
+	var finished := [false]
+	var finish := func(success: bool) -> void:
+		if finished[0]:
+			return
+		finished[0] = true
+		_safe_done(done, success)
+
+	if is_inside_tree():
+		get_tree().create_timer(SAVE_TIMEOUT_SEC).timeout.connect(func() -> void:
+			if finished[0]:
+				return
+			push_warning("Cloud save timed out after %ss" % SAVE_TIMEOUT_SEC)
+			finish.call(false)
+		, CONNECT_ONE_SHOT)
 
 	var query := "character_id=eq." + char_id.uri_encode()
 	SupabaseClient.update_data("players", query, player_row, func(success: bool, _res: Variant) -> void:
+		if not is_instance_valid(self):
+			return
 		if success:
-			_sync_related_tables(payload, done)
+			_sync_related_tables(payload, finish)
 			return
 		SupabaseClient.insert_data("players", player_row, func(ins_success: bool, _ins_res: Variant) -> void:
+			if not is_instance_valid(self):
+				return
 			if ins_success:
 				print("✅ สร้างข้อมูลตัวละครใหม่สำเร็จ")
-				_sync_related_tables(payload, done)
+				_sync_related_tables(payload, finish)
 			else:
-				done.call(false)
+				finish.call(false)
 		)
 	)
+
+
+func _safe_done(done: Callable, success: bool) -> void:
+	if done.is_valid():
+		done.call(success)
 
 
 func _sync_related_tables(payload: Dictionary, done: Callable) -> void:
 	var char_id: String = str(payload.get("character_id", ""))
 	var eq_query := "character_id=eq." + char_id.uri_encode()
-	SupabaseClient.delete_data("player_equipment", eq_query, func(_eq_del_ok: bool) -> void:
+	SupabaseClient.delete_data("player_equipment", eq_query, func(eq_del_ok: bool) -> void:
+		if not is_instance_valid(self):
+			return
+		if not eq_del_ok:
+			push_warning("Cloud save: player_equipment delete failed; continuing upsert")
 		_upsert_equipment_records(payload, func(eq_ok: bool) -> void:
+			if not is_instance_valid(self):
+				return
 			if not eq_ok:
-				done.call(false)
+				_safe_done(done, false)
 				return
 			var inv_query := "character_id=eq." + char_id.uri_encode()
-			SupabaseClient.delete_data("player_inventory", inv_query, func(_inv_del_ok: bool) -> void:
+			SupabaseClient.delete_data("player_inventory", inv_query, func(inv_del_ok: bool) -> void:
+				if not is_instance_valid(self):
+					return
+				if not inv_del_ok:
+					push_warning("Cloud save: player_inventory delete failed; continuing upsert")
 				_upsert_inventory_records(payload, done)
 			)
 		)
@@ -214,7 +271,7 @@ func _sync_related_tables(payload: Dictionary, done: Callable) -> void:
 func _upsert_equipment_records(payload: Dictionary, done: Callable) -> void:
 	var records: Array = payload.get("equipment_records", [])
 	if records.is_empty():
-		done.call(true)
+		_safe_done(done, true)
 		return
 	_wait_for_upserts(records, "player_equipment", done)
 
@@ -222,7 +279,7 @@ func _upsert_equipment_records(payload: Dictionary, done: Callable) -> void:
 func _upsert_inventory_records(payload: Dictionary, done: Callable) -> void:
 	var records: Array = payload.get("inventory_records", [])
 	if records.is_empty():
-		done.call(true)
+		_safe_done(done, true)
 		return
 	_wait_for_upserts(records, "player_inventory", done)
 
@@ -230,33 +287,44 @@ func _upsert_inventory_records(payload: Dictionary, done: Callable) -> void:
 func _wait_for_upserts(records: Array, table: String, done: Callable) -> void:
 	var remaining_count: Array[int] = [records.size()]
 	var failed_flag: Array[bool] = [false]
-	
+
+	var finish_one := func(ok: bool) -> void:
+		if not ok:
+			failed_flag[0] = true
+		remaining_count[0] -= 1
+		if remaining_count[0] <= 0:
+			_safe_done(done, not failed_flag[0])
+
 	for record in records:
 		if not record is Dictionary:
-			remaining_count[0] -= 1
-			if remaining_count[0] <= 0:
-				done.call(not failed_flag[0])
+			finish_one.call(true)
 			continue
-			
+
 		var char_id := str(record.get("character_id", "")).uri_encode()
 		var query := "character_id=eq." + char_id
 		if table == "player_equipment":
 			query += "&slot_key=eq." + str(record.get("slot_key", "")).uri_encode()
 		else:
 			query += "&slot_index=eq." + str(record.get("slot_index", "")).uri_encode()
-		SupabaseClient.insert_data(table, record, func(ins_ok: bool, _res: Variant) -> void:
-			if ins_ok:
-				remaining_count[0] -= 1
-				if remaining_count[0] <= 0:
-					done.call(not failed_flag[0])
-			else:
-				SupabaseClient.update_data(table, query, record, func(upd_ok: bool, _res2: Variant) -> void:
-					if not upd_ok:
-						failed_flag[0] = true
-					remaining_count[0] -= 1
-					if remaining_count[0] <= 0:
-						done.call(not failed_flag[0])
-				)
+
+		# 🌟 1. สั่ง UPDATE ของเดิมก่อนเลย (ถ้ามีของอยู่แล้วมันจะทับให้ทันที)
+		SupabaseClient.update_data(table, query, record, func(upd_ok: bool, res: Variant) -> void:
+			# เช็กว่ามีข้อมูลให้ Update ไหม? (ถ้าล้มเหลว หรือ อัปเดตผ่านแต่ไม่มีข้อมูลในตาราง)
+			var needs_insert: bool = false
+			if not upd_ok:
+				needs_insert = true
+			elif res is Array and res.is_empty():
+				needs_insert = true
+				
+			# 🌟 2. ถ้ามีข้อมูลและอัปเดตสำเร็จ จบงานเลย ไม่ต้อง Insert
+			if not needs_insert:
+				finish_one.call(upd_ok)
+				return
+				
+			# 🌟 3. ถ้าไม่มีข้อมูลในช่องนั้นจริงๆ ค่อยยิงคำสั่ง INSERT สร้างใหม่
+			SupabaseClient.insert_data(table, record, func(ins_ok: bool, _ins_res: Variant) -> void:
+				finish_one.call(ins_ok)
+			)
 		)
 
 func _apply_player_stats_from_row(p: Player, row: Dictionary) -> void:

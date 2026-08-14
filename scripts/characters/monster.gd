@@ -31,6 +31,7 @@ var _sync_mute: bool = false
 @onready var click_area: Area2D = $ClickArea
 
 var _hit_center_local := Vector2.ZERO
+var _facing_dir := Vector2.DOWN
 
 
 func _ready() -> void:
@@ -45,42 +46,32 @@ func _ready() -> void:
 		chase_range = data.get("chase_range", 100.0)
 		attack_range = data.get("attack_range", GameConstants.MONSTER_MELEE_RANGE_DEFAULT)
 		attack_cooldown = data.get("attack_cooldown", 1.5)
-		
-		scale = data.get("scale", Vector2.ONE)
-		_apply_creature_sprite(data)
+		var visual := MonsterDB.apply_sprite_visual(sprite, data)
+		_setup_collision(visual.get("body_radius", 8.0), visual.get("click_radius", 32.0))
 		
 	chase_range_sq = chase_range * chase_range
 	attack_range_sq = attack_range * attack_range
 		
-	if sprite.sprite_frames and sprite.sprite_frames.has_animation("idle"):
-		sprite.play("idle")
+	if sprite.sprite_frames and sprite.sprite_frames.has_animation("walk_down"):
+		sprite.play("walk_down")
 		
 	_reset_wander()
 	set_process(false)
 	call_deferred("_refresh_hitboxes")
 
 
-func _apply_creature_sprite(data: Dictionary) -> void:
-	var creature := str(data.get("creature", ""))
-	if creature.is_empty() or not is_instance_valid(sprite):
-		return
-	var frames := MonsterSpriteLoader.build_sprite_frames(creature)
-	if frames.get_animation_names().is_empty():
-		return
-	sprite.sprite_frames = frames
-	sprite.scale = MonsterSpriteLoader.get_sprite_scale(frames)
-	sprite.centered = false
-	sprite.offset = Vector2(-10, -10)
-	sprite.position = Vector2(-13.5, -12)
+func _update_facing_sprite(dir: Vector2) -> void:
+	if dir.length_squared() > 0.0001:
+		_facing_dir = dir.normalized()
+	MonsterSpriteLoader.play_facing(sprite, _facing_dir)
 
 
 func _refresh_hitboxes() -> void:
-	var data = MonsterDB.get_monster(monster_id)
+	var data := MonsterDB.get_monster(monster_id)
 	if data.is_empty():
 		return
-	var b_radius = data.get("body_radius", 8.0)
-	var c_radius = data.get("click_radius", 32.0)
-	_setup_collision(b_radius, c_radius)
+	var visual := MonsterDB.resolve_visual(data)
+	_setup_collision(visual.get("body_radius", 8.0), visual.get("click_radius", 32.0))
 
 
 func _setup_collision(b_radius: float, c_radius: float) -> void:
@@ -152,9 +143,6 @@ func take_damage(amount: int) -> void:
 
 	is_provoked = true
 
-	if sprite.sprite_frames.has_animation("hurt"):
-		sprite.play("hurt")
-
 	sprite.modulate = Color(2.5, 2.5, 2.5, 1)
 	var tween = create_tween()
 	tween.tween_property(sprite, "modulate", Color(1, 1, 1, 1), 0.15)
@@ -204,8 +192,6 @@ func _apply_sync_death_visual() -> void:
 	if click_col:
 		click_col.disabled = true
 	hp_bar.visible = false
-	if sprite.sprite_frames.has_animation("dying"):
-		sprite.play("dying")
 
 func apply_hit_stun(duration: float) -> void:
 	is_stunned = true
@@ -228,9 +214,6 @@ func _die() -> void:
 		
 	hp_bar.visible = false
 	
-	if sprite.sprite_frames.has_animation("dying"):
-		sprite.play("dying")
-	
 	died.emit(self)
 
 func respawn(new_pos: Vector2) -> void:
@@ -248,6 +231,9 @@ func respawn(new_pos: Vector2) -> void:
 		
 	hp_bar.visible = false
 	sprite.modulate = Color(1, 1, 1, 1)
+	_facing_dir = Vector2.DOWN
+	if sprite.sprite_frames and sprite.sprite_frames.has_animation("walk_down"):
+		sprite.play("walk_down")
 
 func set_selected(p_selected: bool) -> void:
 	if is_selected != p_selected:
@@ -269,10 +255,8 @@ func update_ai(delta: float, player: Node2D, player_pos: Vector2, time_sec: floa
 
 	if (is_aggressive or is_provoked) and dist_sq < chase_range_sq:
 		if dist_sq <= attack_range_sq:
-			wander_dir = Vector2.ZERO 
-
-			if sprite.sprite_frames.has_animation("attack") and sprite.animation != "attack":
-				sprite.play("attack")
+			wander_dir = Vector2.ZERO
+			_update_facing_sprite(player_pos - my_pos)
 
 			if time_sec - last_hit_time >= attack_cooldown:
 				last_hit_time = time_sec
@@ -304,24 +288,17 @@ func update_ai(delta: float, player: Node2D, player_pos: Vector2, time_sec: floa
 	# 🌟 2. เช็กว่าขยับจริงไหม
 	var actually_moved := global_position.distance_squared_to(pos_before) > 0.01
 
-	if wander_dir.x != 0:
-		sprite.flip_h = wander_dir.x < 0
-	elif player_pos.x != my_pos.x:
-		sprite.flip_h = player_pos.x < my_pos.x
+	var face_dir := wander_dir
+	if actually_moved and velocity.length_squared() > 0.01:
+		face_dir = velocity
+	elif face_dir.length_squared() < 0.0001 and player_pos != my_pos:
+		face_dir = player_pos - my_pos
+	_update_facing_sprite(face_dir)
 
-	if sprite.animation != "attack" and sprite.animation != "hurt":
-		# 🌟 3. ใช้ actually_moved เป็นตัวตัดสินใจเปลี่ยนแอนิเมชันเดินหรือยืน
-		if actually_moved:
-			if sprite.sprite_frames.has_animation("walking") and sprite.animation != "walking":
-				sprite.play("walking")
-		else:
-			if sprite.sprite_frames.has_animation("idle") and sprite.animation != "idle":
-				sprite.play("idle")
-			
-			# ความฉลาดของ AI: ถ้ามันเดินสุ่มไปติดกำแพง ให้มันสุ่มทิศทางใหม่ทันที
-			if not (is_aggressive or is_provoked) or dist_sq >= chase_range_sq:
-				if wander_dir != Vector2.ZERO:
-					_reset_wander()
+	if not actually_moved:
+		if not (is_aggressive or is_provoked) or dist_sq >= chase_range_sq:
+			if wander_dir != Vector2.ZERO:
+				_reset_wander()
 
 func _process(_delta: float) -> void:
 	if is_selected and is_active_monster:

@@ -42,9 +42,9 @@ const MOB_SLOTS: Array[Dictionary] = [
 ]
 
 const WEST_FIELD_MOB_SLOTS: Array[Dictionary] = [
-	{"sync_id": "west_meadow_goblin_0", "type": "meadow_goblin", "pos": Vector2(320, 280)},
-	{"sync_id": "west_thicket_orc_0", "type": "thicket_orc", "pos": Vector2(640, 360)},
-	{"sync_id": "west_boulder_ogre_0", "type": "boulder_ogre", "pos": Vector2(960, 440)},
+	{"sync_id": "west_batty_0", "type": "batty", "pos": Vector2(320, 280)},
+	{"sync_id": "west_boby_0", "type": "boby", "pos": Vector2(640, 360)},
+	{"sync_id": "west_jibby_0", "type": "jibby", "pos": Vector2(960, 440)},
 ]
 
 var _world: World = null

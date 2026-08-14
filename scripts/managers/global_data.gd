@@ -14,7 +14,7 @@ var warp_spawn_pending: bool = false
 var pending_warp_scene: String = ""
 
 var pending_active_quests: Dictionary = {}
-var pending_finished_quests: Array = []
+var pending_finished_quests: Array[String] = []
 var has_pending_quest_state: bool = false
 
 var save_point_scene: String = ""
@@ -89,7 +89,9 @@ func stash_quest_state(player: Player) -> void:
 	if player == null:
 		return
 	pending_active_quests = player.active_quests.duplicate(true)
-	pending_finished_quests = player.finished_quests.duplicate()
+	pending_finished_quests.clear()
+	for qid in player.finished_quests:
+		pending_finished_quests.append(str(qid))
 	has_pending_quest_state = true
 
 

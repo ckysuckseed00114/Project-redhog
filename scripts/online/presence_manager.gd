@@ -8,6 +8,9 @@ const STALE_TIMEOUT_MS := 5000
 var _remote_nodes: Dictionary = {}
 var _remote_last_seen: Dictionary = {}
 var _world_root: Node2D
+var _stale_check_accum: float = 0.0
+
+const STALE_CHECK_INTERVAL := 1.0
 
 
 func _ready() -> void:
@@ -38,10 +41,13 @@ func broadcast_chat(message: String) -> void:
 	PresenceSync.send_chat(message)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not _world_root or not OnlineSession.is_logged_in():
 		return
-	_prune_stale_remotes()
+	_stale_check_accum += delta
+	if _stale_check_accum >= STALE_CHECK_INTERVAL:
+		_stale_check_accum = 0.0
+		_prune_stale_remotes()
 
 
 func _local_scene_path() -> String:

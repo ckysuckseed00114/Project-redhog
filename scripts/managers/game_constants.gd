@@ -20,11 +20,14 @@ const FONT_LG := 18
 const HUD_MARGIN := 18
 const UI_PANEL_GAP := 12
 const HUD_WIDTH := 450
-const HUD_HEIGHT := 177
+const HUD_HEIGHT := 108
 const BAR_HEIGHT := 24
-const WIN_STAT_SIZE := Vector2(520, 300)
-const WIN_EQUIP_SIZE := Vector2(200, 440)
-const WIN_INV_SIZE := Vector2(400, 508)
+const EXP_STRIP_HEIGHT := 32
+const EXP_BAR_HEIGHT := 6
+const WIN_STAT_SIZE := Vector2(700, 460)
+const WIN_BAG_SIZE := Vector2(820, 520)
+const WIN_EQUIP_SIZE := WIN_BAG_SIZE
+const WIN_INV_SIZE := WIN_BAG_SIZE
 const WIN_SKILL_SIZE := Vector2(520, 320)
 const ACTION_BAR_HEIGHT := 64
 const MINIMAP_SIZE := 168
@@ -53,6 +56,14 @@ const MONSTER_MELEE_RANGE_DEFAULT := MELEE_RANGE
 
 func action_bar_y() -> float:
 	return float(GAME_HEIGHT - ACTION_BAR_HEIGHT)
+
+
+func exp_strip_y() -> float:
+	return float(GAME_HEIGHT - ACTION_BAR_HEIGHT - EXP_STRIP_HEIGHT)
+
+
+func bottom_hud_top_y() -> float:
+	return exp_strip_y()
 
 
 func bottom_ui_top_y() -> float:

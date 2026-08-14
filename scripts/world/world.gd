@@ -5,9 +5,7 @@ var selected_target: CharacterBody2D = null
 @onready var monsters_root: Node2D = $Monsters if has_node("Monsters") else null
 @onready var effects = $WorldEffects if has_node("WorldEffects") else null
 
-var _poring_scene: PackedScene
 var _big_poring_scene: PackedScene
-var _fabre_scene: PackedScene
 var _generic_monster_scene: PackedScene
 var _monsters: Array[CharacterBody2D] = []
 var _mob_by_sync_id: Dictionary = {}
@@ -30,9 +28,7 @@ func get_scenery_exclusions() -> Array[Vector2]:
 func _ready() -> void:
 	super._ready()
 
-	_poring_scene = preload("res://scenes/characters/poring.tscn")
 	_big_poring_scene = preload("res://scenes/characters/big_poring.tscn")
-	_fabre_scene = preload("res://scenes/characters/fabre.tscn")
 	_generic_monster_scene = preload("res://scenes/characters/generic_monster.tscn")
 	
 	_spawn_monsters()
@@ -162,24 +158,12 @@ func _spawn_monsters() -> void:
 
 
 func _instantiate_mob(mob_type: String) -> Monster:
-	match mob_type:
-		"fabre":
-			var fabre: Monster = _fabre_scene.instantiate() as Monster
-			if fabre:
-				fabre.monster_id = "fabre"
-			return fabre
-		"poring":
-			var poring: Monster = _poring_scene.instantiate() as Monster
-			if poring:
-				poring.monster_id = "poring"
-			return poring
-		_:
-			if MonsterDB.get_monster(mob_type).is_empty():
-				return _poring_scene.instantiate() as Monster
-			var mob: Monster = _generic_monster_scene.instantiate() as Monster
-			if mob:
-				mob.monster_id = mob_type
-			return mob
+	if MonsterDB.get_monster(mob_type).is_empty():
+		mob_type = "poring"
+	var mob: Monster = _generic_monster_scene.instantiate() as Monster
+	if mob:
+		mob.monster_id = mob_type
+	return mob
 
 
 func get_mob_by_sync_id(sync_id: String) -> CharacterBody2D:
@@ -440,18 +424,14 @@ func _handle_movement(_delta: float) -> void:
 
 	# --- ระบบเซฟตี้หนีบอสอัตโนมัติ (Flee Boss) ---
 	if player.get("is_auto_mode") and player.get("auto_flee_boss"):
-		var flee_radius_sq := 160000.0 
+		var flee_radius_sq := 160000.0
 		var boss_to_flee_from: CharacterBody2D = null
-		
-		for m in _monsters:
-			if is_instance_valid(m) and m.get("is_active_monster"):
-				var is_boss = (m.get("sync_id") == "world_boss" or m.get("monster_id") == "big_poring")
-				if is_boss:
-					var dist_sq = p_pos.distance_squared_to(m.global_position)
-					if dist_sq < flee_radius_sq and _is_path_clear(p_pos, m.global_position, m):
-						boss_to_flee_from = m
-						break
-		
+		var boss: Node = BossManager.active_boss if BossManager else null
+		if is_instance_valid(boss) and boss.get("is_active_monster"):
+			var dist_sq := p_pos.distance_squared_to(boss.global_position)
+			if dist_sq < flee_radius_sq and _is_path_clear(p_pos, boss.global_position, boss):
+				boss_to_flee_from = boss as CharacterBody2D
+
 		if boss_to_flee_from:
 			_set_selected_target(null) 
 			move_target = null

@@ -22,6 +22,15 @@ static func calculate_defense(vit: int, equipment: Dictionary) -> int:
 static func calculate_magic_attack(int_stat: int) -> int:
 	return int_stat * 2
 
+# คำนวณพลังป้องกันเวทมนตร์
+static func calculate_magic_defense(int_stat: int, equipment: Dictionary) -> int:
+	var base_mdef := int(floor(float(int_stat) * 0.2))
+	var eq_mdef := 0
+	for key in ["armor", "helm", "garment", "shield", "boots"]:
+		if equipment.has(key) and equipment[key] != null:
+			eq_mdef += int(equipment[key].get("mdef", 0))
+	return base_mdef + eq_mdef
+
 # คำนวณความเร็วในการโจมตี (ASPD)
 static func calculate_attack_speed(agi: int) -> float:
 	return 1.0 + (float(agi) * 0.02)

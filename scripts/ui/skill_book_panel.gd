@@ -157,7 +157,7 @@ func _make_skill_card(skill_id: String) -> Control:
 	icon_wrap.gui_input.connect(func(event: InputEvent):
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			if learned:
-				var ui = get_tree().get_first_node_in_group("ui")
+				var ui := UiAccess.get_ui(self)
 				if ui and ui.has_method("_begin_skill_book_press"):
 					ui._begin_skill_book_press(skill_id, event.global_position)
 					get_viewport().set_input_as_handled()

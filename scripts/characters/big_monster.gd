@@ -31,13 +31,11 @@ var is_selected: bool = false
 var click_area: Area2D
 var _hit_center_local := Vector2.ZERO
 var _sync_mute: bool = false
+var _facing_dir := Vector2.DOWN
 
 func _ready() -> void:
 	add_to_group("monsters")
 	add_to_group("boss")
-	if animated_sprite:
-		animated_sprite.visible = true
-		animated_sprite.play("idle")
 	
 	home_position = global_position 
 	
@@ -48,17 +46,21 @@ func _ready() -> void:
 		speed = data.get("speed", 50.0)
 		attack_range = data.get("attack_range", 48.0)
 		attack_cooldown = data.get("attack_cooldown", 1.0)
+		var visual := MonsterDB.apply_sprite_visual(animated_sprite, data)
+		if animated_sprite:
+			animated_sprite.visible = true
+		_setup_click_area(visual.get("click_radius", 28.0))
 
 	chase_range_sq = chase_range * chase_range
 	attack_range_sq = attack_range * attack_range
-	
+
 	collision_layer = 2
 	collision_mask = 0
 
 	_hit_center_local = _get_sprite_local_center()
-	var body_data = MonsterDB.get_monster(monster_id)
-	var b_radius: float = body_data.get("body_radius", 16.0)
-	var c_radius: float = body_data.get("click_radius", 28.0)
+	var body_data := MonsterDB.get_monster(monster_id)
+	var body_visual := MonsterDB.resolve_visual(body_data)
+	var b_radius: float = body_visual.get("body_radius", 16.0)
 
 	var data_col := get_node_or_null("CollisionShape2D")
 	if data_col:
@@ -66,14 +68,14 @@ func _ready() -> void:
 			data_col.shape.radius = b_radius
 		data_col.position = _hit_center_local
 
-	_setup_click_area(c_radius)
 	call_deferred("_refresh_hitboxes")
 
 
 func _refresh_hitboxes() -> void:
-	var body_data = MonsterDB.get_monster(monster_id)
-	var b_radius: float = body_data.get("body_radius", 16.0)
-	var c_radius: float = body_data.get("click_radius", 40.0)
+	var body_data := MonsterDB.get_monster(monster_id)
+	var visual := MonsterDB.resolve_visual(body_data)
+	var b_radius: float = visual.get("body_radius", 16.0)
+	var c_radius: float = visual.get("click_radius", 40.0)
 	_hit_center_local = _get_sprite_local_center()
 
 	var data_col := get_node_or_null("CollisionShape2D")
@@ -147,22 +149,13 @@ func update_ai(_delta: float, player: Node2D, player_pos: Vector2, time_sec: flo
 		if dist_to_home_sq < 100.0:
 			is_returning = false
 			velocity = Vector2.ZERO
-			if animated_sprite and animated_sprite.animation != "idle":
-				animated_sprite.play("idle")
+			MonsterSpriteLoader.play_facing(animated_sprite, _facing_dir)
 		else:
 			var dir := (home_position - global_position).normalized()
 			velocity = dir * speed
 			move_and_slide()
-			
-			if velocity.x != 0:
-				animated_sprite.flip_h = velocity.x < 0
-			
-			var walk_anim_name = "walking"
-			if animated_sprite and animated_sprite.animation != walk_anim_name:
-				if animated_sprite.sprite_frames.has_animation(walk_anim_name):
-					animated_sprite.play(walk_anim_name)
-				else:
-					animated_sprite.play("idle")
+			_facing_dir = dir
+			MonsterSpriteLoader.play_facing(animated_sprite, _facing_dir)
 		return
 
 	if dist_to_home_sq > max_leash_sq:
@@ -174,25 +167,13 @@ func update_ai(_delta: float, player: Node2D, player_pos: Vector2, time_sec: flo
 		var dir := (player_pos - my_pos).normalized()
 		velocity = dir * speed
 		move_and_slide()
-		
-		if velocity.x != 0:
-			animated_sprite.flip_h = velocity.x < 0
-		
-		var walk_anim_name = "walking"
-		if animated_sprite and animated_sprite.animation != walk_anim_name:
-			if animated_sprite.sprite_frames.has_animation(walk_anim_name):
-				animated_sprite.play(walk_anim_name)
-			else:
-				animated_sprite.play("idle")
+		_facing_dir = dir
+		MonsterSpriteLoader.play_facing(animated_sprite, _facing_dir)
 				
 	elif dist_to_player_sq <= attack_range_sq:
 		velocity = Vector2.ZERO
-		
-		if player_pos.x != my_pos.x:
-			animated_sprite.flip_h = player_pos.x < my_pos.x
-			
-		if animated_sprite and animated_sprite.animation != "attack":
-			animated_sprite.play("attack")
+		_facing_dir = player_pos - my_pos
+		MonsterSpriteLoader.play_facing(animated_sprite, _facing_dir)
 			
 		if time_sec - last_hit_time >= attack_cooldown:
 			last_hit_time = time_sec
@@ -201,8 +182,7 @@ func update_ai(_delta: float, player: Node2D, player_pos: Vector2, time_sec: flo
 				
 	else:
 		velocity = Vector2.ZERO
-		if animated_sprite and animated_sprite.animation != "idle":
-			animated_sprite.play("idle")
+		MonsterSpriteLoader.play_facing(animated_sprite, _facing_dir)
 
 func take_damage(amount: float) -> void:
 	if not is_active_monster:
@@ -218,21 +198,19 @@ func take_damage(amount: float) -> void:
 		var col = get_node_or_null("CollisionShape2D")
 		if col:
 			col.set_deferred("disabled", true)
+			
+		# 🌟 แก้ไขตรงนี้: ประกาศและเช็กตัวแปร click_col ให้ถูกต้องใน Scope เดียวกัน
 		if click_area:
 			var click_col = click_area.get_node_or_null("CollisionShape2D")
 			if click_col:
 				click_col.set_deferred("disabled", true)
-		
-		if animated_sprite:
-			animated_sprite.play("dying")
 		
 		emit_signal("died", self)
 	elif not _sync_mute:
 		var world := get_tree().get_first_node_in_group("world")
 		if world and world.has_method("notify_boss_hp"):
 			world.notify_boss_hp(hp)
-
-
+			
 func apply_sync_hp(new_hp: float) -> void:
 	if not is_active_monster:
 		return
@@ -263,8 +241,6 @@ func _apply_sync_death_visual() -> void:
 		var click_col = click_area.get_node_or_null("CollisionShape2D")
 		if click_col:
 			click_col.set_deferred("disabled", true)
-	if animated_sprite:
-		animated_sprite.play("dying")
 
 func respawn(pos: Vector2) -> void:
 	global_position = pos
@@ -283,8 +259,9 @@ func respawn(pos: Vector2) -> void:
 		if click_col:
 			click_col.disabled = false
 	
-	if animated_sprite:
-		animated_sprite.play("idle")
+	if animated_sprite and animated_sprite.sprite_frames.has_animation("walk_down"):
+		animated_sprite.play("walk_down")
+	_facing_dir = Vector2.DOWN
 
 func set_selected(p_selected: bool) -> void:
 	if is_selected != p_selected:

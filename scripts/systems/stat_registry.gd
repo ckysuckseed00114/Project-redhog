@@ -24,6 +24,7 @@ const DERIVED := {
 	"atk": "Attack (ATK)",
 	"def": "Defense (DEF)",
 	"matk": "Magic ATK (MATK)",
+	"mdef": "Magic DEF (MDEF)",
 	"aspd": "Attack Speed",
 	"hit": "Accuracy (HIT)",
 	"flee": "Evasion (FLEE)",
@@ -98,6 +99,8 @@ static func get_derived(player: Player, key: String) -> Variant:
 			return combatcalculator.calculate_defense(get_primary(player, "vit"), player.equipment)
 		"matk":
 			return combatcalculator.calculate_magic_attack(get_primary(player, "int"))
+		"mdef":
+			return combatcalculator.calculate_magic_defense(get_primary(player, "int"), player.equipment)
 		"aspd":
 			return combatcalculator.calculate_attack_speed(get_primary(player, "agi"))
 		"hit":

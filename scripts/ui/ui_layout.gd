@@ -23,7 +23,7 @@ static func chat_height(collapsed: bool) -> float:
 static func chat_rect(collapsed: bool = false) -> Rect2:
 	var h := chat_height(collapsed)
 	# 🌟 เพิ่มระยะห่างจากแถบเมนูด้านล่างขึ้นไปอีก (เช่น + 8 หรือปรับค่าตามต้องการ)
-	var y := GameConstants.action_bar_y() - h - float(GameConstants.UI_PANEL_GAP) - 12.0
+	var y := GameConstants.exp_strip_y() - h - float(GameConstants.UI_PANEL_GAP) - 12.0
 	return Rect2(float(GameConstants.HUD_MARGIN), y, float(GameConstants.CHAT_WIDTH), h)
 
 
@@ -31,7 +31,7 @@ static func skill_bar_rect(collapsed: bool = false) -> Rect2:
 	var chat := chat_rect(collapsed)
 	var sz := skill_bar_size()
 	var x := chat.end.x + float(GameConstants.UI_PANEL_GAP)
-	var y := GameConstants.action_bar_y() - sz.y - QUICK_BAR_GAP
+	var y := GameConstants.exp_strip_y() - sz.y - QUICK_BAR_GAP
 	return Rect2(x, y, sz.x, sz.y)
 
 
@@ -61,7 +61,7 @@ static func notification_base_y() -> float:
 
 
 static func inventory_block_width() -> float:
-	return GameConstants.WIN_EQUIP_SIZE.x + float(GameConstants.UI_PANEL_GAP) + GameConstants.WIN_INV_SIZE.x
+	return GameConstants.WIN_BAG_SIZE.x
 
 
 static func inventory_block_left() -> float:
@@ -158,7 +158,7 @@ static func boss_window_rect(entry_count: int, chat_collapsed: bool = false) -> 
 
 
 static func layout_inventory_y(chat_collapsed: bool) -> float:
-	var inv_h := GameConstants.WIN_INV_SIZE.y
+	var inv_h := GameConstants.WIN_BAG_SIZE.y
 	var top_limit := left_column_start_y()
 	var bottom_limit := bottom_reserved_top_y(chat_collapsed) - inv_h
 	var center_y := (float(GameConstants.GAME_HEIGHT) - inv_h) * 0.5

@@ -15,8 +15,11 @@ const GH := GameConstants.GAME_HEIGHT
 
 var _action_bar: Panel
 
-var world: Node2D
+var world: World
 var player: Player
+var _pause_menu: Node
+var _last_minimap_tile: Vector2i = Vector2i(-999999, -999999)
+var _target_hud_monster_id: String = ""
 var chat_log_instance: ChatLog
 var _shop_panel: ShopPanel
 var is_stat_open: bool = false
@@ -54,18 +57,21 @@ var _hp_bar: ColorRect
 var _hp_text: Label
 var _sp_bar: ColorRect
 var _sp_text: Label
-var _xp_bar: ColorRect
-var _xp_text: Label
+var _exp_strip_root: Panel
+var _base_exp_label: Label
+var _base_exp_bar: ColorRect
+var _job_exp_label: Label
+var _job_exp_bar: ColorRect
 var _target_hud_root: Panel
 var _target_name_label: Label
 var _target_hp_bar: ColorRect
 var _target_hp_text: Label
 var _stat_panel: StatWindowPanel
 var _inv_root: Panel
-var _inventory_panel: InventoryPanel
+var _bag_panel: InventoryEquipWindow
+var _inventory_panel: InventoryEquipWindow
+var _equipment_panel: InventoryEquipWindow
 var _inv_slots: Array = []
-var _equip_root: Panel
-var _equipment_panel: EquipmentPanel
 var _equip_slots: Dictionary = {}
 var _skill_slots: Array = []
 var _tooltip_panel: Panel
@@ -134,7 +140,7 @@ func _update_player_stats_ui() -> void:
 
 	_title_label.text = GlobalData.player_name if GlobalData.player_name != "" else "Adventurer"
 	if _job_hud_label:
-		_job_hud_label.text = "Lv.%d | %s J.Lv.%d" % [player.level, ClassDatabase.get_display_name(player.current_job), player.job_level]
+		_job_hud_label.text = "Lv.%d  %s" % [player.level, ClassDatabase.get_display_name(player.current_job)]
 	if _zeny_hud_label:
 		_zeny_hud_label.text = "%d Z" % player.zeny
 
@@ -146,16 +152,14 @@ func _update_player_stats_ui() -> void:
 	_sp_bar.scale.x = sp_pct
 	_sp_text.text = "%d/%d" % [player.sp, player.max_sp]
 
-	var xp_pct := clampf(float(player.current_exp) / player.max_exp, 0.0, 1.0)
-	_xp_bar.scale.x = xp_pct
-	_xp_text.text = "%d/%d" % [player.current_exp, player.max_exp]
+	_refresh_exp_strip()
 	
 	if is_stat_open and _stat_panel:
 		_stat_panel.refresh(player)
 
 
 func _connect_world() -> void:
-	world = get_tree().get_first_node_in_group("world")
+	world = get_tree().get_first_node_in_group("world") as World
 	if world:
 		player = world.get_player()
 		if player:
@@ -170,12 +174,18 @@ func _connect_world() -> void:
 		_build_ui()
 
 
+func _get_pause_menu() -> Node:
+	if _pause_menu == null or not is_instance_valid(_pause_menu):
+		_pause_menu = get_tree().root.get_node_or_null("PauseMenu")
+	return _pause_menu
+
+
 func blocks_player_movement() -> bool:
 	if is_death_dialog_open:
 		return true
 		
 	# 🌟 เพิ่มการเช็กหน้าต่าง Pause Menu กลางเกม
-	var pause_menu = get_tree().root.get_node_or_null("PauseMenu")
+	var pause_menu := _get_pause_menu()
 	if pause_menu and pause_menu.visible:
 		return true
 		
@@ -248,13 +258,15 @@ func _rect_blocks_click(pos: Vector2) -> bool:
 		return true
 	if _action_bar and _panel_screen_rect(_action_bar).has_point(pos):
 		return true
+	if _exp_strip_root and _panel_screen_rect(_exp_strip_root).has_point(pos):
+		return true
 	if _skill_bar_root and _skill_bar_root.visible and _panel_screen_rect(_skill_bar_root).has_point(pos):
 		return true
 	if chat_log_instance and _panel_screen_rect(chat_log_instance).has_point(pos):
 		return true
 	if _quest_log and _quest_log.is_panel_visible() and _panel_screen_rect(_quest_log).has_point(pos):
 		return true
-	if pos.y >= GameConstants.action_bar_y():
+	if pos.y >= GameConstants.exp_strip_y():
 		return true
 	return false
 
@@ -265,8 +277,6 @@ func _open_window_panels() -> Array[Control]:
 	if is_inventory_open:
 		if _inv_root:
 			panels.append(_inv_root)
-		if _equip_root:
-			panels.append(_equip_root)
 	if is_skill_open and _skill_root:
 		panels.append(_skill_root)
 	if is_party_open and _party_root:
@@ -306,6 +316,8 @@ func _layout_open_windows() -> void:
 
 
 func _layout_bottom_hud() -> void:
+	if _exp_strip_root:
+		_exp_strip_root.position = Vector2(0, GameConstants.exp_strip_y())
 	var collapsed := _chat_collapsed()
 	if chat_log_instance:
 		chat_log_instance.apply_layout(UILayout.chat_rect(collapsed))
@@ -345,16 +357,11 @@ func _layout_quest_log() -> void:
 
 
 func _layout_right_column() -> void:
-	if not is_inventory_open:
+	if not is_inventory_open or _bag_panel == null:
 		return
-	var equip_size := GameConstants.WIN_EQUIP_SIZE
-	var spacing := float(GameConstants.UI_PANEL_GAP)
 	var start_x := UILayout.inventory_block_left()
 	var start_y := UILayout.layout_inventory_y(_chat_collapsed())
-	if _equip_root:
-		_equip_root.position = Vector2(start_x, start_y)
-	if _inv_root:
-		_inv_root.position = Vector2(start_x + equip_size.x + spacing, start_y)
+	_bag_panel.position = Vector2(start_x, start_y)
 
 
 func _layout_center_modals() -> void:
@@ -421,6 +428,7 @@ func _raise_modal_panel(panel: Control) -> void:
 
 func _build_ui() -> void:
 	_build_hud()
+	_build_exp_strip()
 	_build_minimap()
 	_build_boss_window()
 	_build_map_window()
@@ -431,8 +439,7 @@ func _build_ui() -> void:
 	_build_skill_bar()
 	_update_quick_slot_ui()
 	_build_stat_window()
-	_build_equipment_window()
-	_build_inventory_window()
+	_build_bag_window()
 	_build_skill_window()
 	_build_quest_log()
 	_build_party_window()
@@ -454,6 +461,7 @@ func _build_ui() -> void:
 		PartyManager.party_updated.connect(_update_party_ui)
 
 	_layout_open_windows()
+	_update_player_stats_ui()
 
 
 func _build_hud() -> void:
@@ -480,7 +488,77 @@ func _build_hud() -> void:
 
 	_add_hud_bar(hud_panel, "HP", Vector2(pad, 48), bar_w, Color8(0x9b, 0xe8, 0x44))
 	_add_hud_bar(hud_panel, "SP", Vector2(pad, 68), bar_w, Color8(0x44, 0xd4, 0xe8))
-	_add_hud_bar(hud_panel, "EXP", Vector2(pad, 88), bar_w, Color8(0xf1, 0xc4, 0x0f))
+
+
+func _build_exp_strip() -> void:
+	_exp_strip_root = Panel.new()
+	_exp_strip_root.position = Vector2(0, GameConstants.exp_strip_y())
+	_exp_strip_root.custom_minimum_size = Vector2(GW, GameConstants.EXP_STRIP_HEIGHT)
+	_exp_strip_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var strip_style := StyleBoxFlat.new()
+	strip_style.bg_color = Color(0.04, 0.04, 0.07, 0.9)
+	strip_style.border_color = Color(0.18, 0.18, 0.26, 0.95)
+	strip_style.border_width_top = 1
+	_exp_strip_root.add_theme_stylebox_override("panel", strip_style)
+	ui_root.add_child(_exp_strip_root)
+
+	var pad := 16.0
+	var mid_gap := 28.0
+	var half_w := (GW - pad * 2.0 - mid_gap) * 0.5
+	var bar_h := float(GameConstants.EXP_BAR_HEIGHT)
+	var bar_y := 18.0
+
+	_base_exp_label = _make_label("Base Lv.1", Vector2(pad, 4), GameConstants.FONT_XS, true, Color8(0x99, 0xcc, 0xff))
+	_exp_strip_root.add_child(_base_exp_label)
+
+	var base_bg := _create_exp_bar_bg(Vector2(pad, bar_y), Vector2(half_w, bar_h))
+	_exp_strip_root.add_child(base_bg)
+	_base_exp_bar = ColorRect.new()
+	_base_exp_bar.color = Color8(0x2b, 0x82, 0xda)
+	_base_exp_bar.custom_minimum_size = Vector2(half_w, bar_h)
+	base_bg.add_child(_base_exp_bar)
+
+	var job_x := pad + half_w + mid_gap
+	_job_exp_label = _make_label("Job Lv.1", Vector2(job_x, 4), GameConstants.FONT_XS, true, Color8(0xff, 0xdd, 0x88))
+	_job_exp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_job_exp_label.custom_minimum_size = Vector2(half_w, 14)
+	_exp_strip_root.add_child(_job_exp_label)
+
+	var job_bg := _create_exp_bar_bg(Vector2(job_x, bar_y), Vector2(half_w, bar_h))
+	_exp_strip_root.add_child(job_bg)
+	_job_exp_bar = ColorRect.new()
+	_job_exp_bar.color = Color8(0xe8, 0xb9, 0x2a)
+	_job_exp_bar.custom_minimum_size = Vector2(half_w, bar_h)
+	_job_exp_bar.pivot_offset = Vector2(half_w, bar_h * 0.5)
+	job_bg.add_child(_job_exp_bar)
+
+
+func _create_exp_bar_bg(pos: Vector2, size: Vector2) -> Panel:
+	var panel := Panel.new()
+	panel.position = pos
+	panel.custom_minimum_size = size
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color8(0x10, 0x10, 0x18)
+	style.corner_radius_top_left = 2
+	style.corner_radius_bottom_left = 2
+	style.corner_radius_top_right = 2
+	style.corner_radius_bottom_right = 2
+	panel.add_theme_stylebox_override("panel", style)
+	panel.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
+	return panel
+
+
+func _refresh_exp_strip() -> void:
+	if not player or _base_exp_bar == null:
+		return
+	if _base_exp_label:
+		_base_exp_label.text = "Base Lv.%d" % player.level
+	var base_pct := clampf(float(player.current_exp) / maxf(1, player.max_exp), 0.0, 1.0)
+	_base_exp_bar.scale.x = base_pct
+	if _job_exp_label:
+		_job_exp_label.text = "Job Lv.%d" % player.job_level
+	var job_pct := clampf(float(player.job_exp) / maxf(1, player.max_job_exp), 0.0, 1.0)
+	_job_exp_bar.scale.x = job_pct
 
 
 func _add_hud_bar(parent: Control, tag: String, pos: Vector2, width: float, color: Color) -> void:
@@ -503,9 +581,6 @@ func _add_hud_bar(parent: Control, tag: String, pos: Vector2, width: float, colo
 		"SP":
 			_sp_bar = bar
 			_sp_text = text
-		"EXP":
-			_xp_bar = bar
-			_xp_text = text
 
 
 func _create_bar_bg(pos: Vector2, size: Vector2, color: Color) -> Panel:
@@ -1074,10 +1149,14 @@ func _update_minimap_info() -> void:
 		return
 	if _minimap_name_label:
 		var pos := player.global_position
+		var tile := Vector2i(int(pos.x), int(pos.y))
+		if tile == _last_minimap_tile:
+			return
+		_last_minimap_tile = tile
 		_minimap_name_label.text = "%s  X:%d  Y:%d" % [
 			ProjectPaths.get_map_display_name(world),
-			int(pos.x),
-			int(pos.y)
+			tile.x,
+			tile.y
 		]
 
 
@@ -1571,37 +1650,31 @@ func _build_stat_window() -> void:
 	_stat_panel = StatWindowPanel.new()
 	_stat_panel.visible = false
 	_stat_panel.closed.connect(_toggle_stat)
+	_stat_panel.layout_changed.connect(_layout_open_windows)
 	# 🌟 เชื่อมสัญญาณปุ่ม Confirm แทนปุ่ม Plus
 	_stat_panel.stat_confirm_pressed.connect(_on_stat_confirm)
 	ui_root.add_child(_stat_panel)
 
 
-func _build_equipment_window() -> void:
-	var equip_size := GameConstants.WIN_EQUIP_SIZE
-	var inv_size := GameConstants.WIN_INV_SIZE
-	var spacing := 8
-	var total_width := equip_size.x + spacing + inv_size.x
-	var start_x := int(GW - total_width - GameConstants.HUD_MARGIN)
-	var start_y := int((GH - inv_size.y) / 2.0)
+func _build_bag_window() -> void:
+	var start_x := UILayout.inventory_block_left()
+	var start_y := UILayout.layout_inventory_y(false)
 
-	_equipment_panel = EquipmentPanel.new()
-	_equipment_panel.position = Vector2(start_x, start_y)
-	_equipment_panel.visible = false
-	_equipment_panel.closed.connect(_toggle_inventory)
-	_equipment_panel.slot_gui_input.connect(_on_equipment_slot_gui_input)
-	_equipment_panel.slot_mouse_entered.connect(_on_equipment_slot_mouse_entered)
-	_equipment_panel.slot_mouse_exited.connect(_on_equipment_slot_mouse_exited)
-	ui_root.add_child(_equipment_panel)
-	_equip_root = _equipment_panel
-	_equip_slots = _equipment_panel.equip_slots
+	_bag_panel = InventoryEquipWindow.new()
+	_bag_panel.position = Vector2(start_x, start_y)
+	_bag_panel.visible = false
+	_bag_panel.closed.connect(_toggle_inventory)
+	_bag_panel.slot_mouse_entered.connect(_on_inventory_slot_mouse_entered)
+	_bag_panel.slot_mouse_exited.connect(_on_inventory_slot_mouse_exited)
+	_bag_panel.equip_slot_mouse_entered.connect(_on_equipment_slot_mouse_entered)
+	_bag_panel.equip_slot_mouse_exited.connect(_on_equipment_slot_mouse_exited)
+	ui_root.add_child(_bag_panel)
 
-
-func _on_equipment_slot_gui_input(slot_key: String, event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if player:
-			player.unequip_item(slot_key)
-			_hide_item_tooltip()
-		get_viewport().set_input_as_handled()
+	_inv_root = _bag_panel
+	_inventory_panel = _bag_panel
+	_equipment_panel = _bag_panel
+	_inv_slots = _bag_panel.inv_slots
+	_equip_slots = _bag_panel.equip_slots
 
 
 func _on_equipment_slot_mouse_entered(slot_key: String) -> void:
@@ -1615,60 +1688,11 @@ func _on_equipment_slot_mouse_exited(_slot_key: String) -> void:
 	_hide_item_tooltip()
 
 
-func _build_inventory_window() -> void:
-	var equip_size := GameConstants.WIN_EQUIP_SIZE
-	var inv_size := GameConstants.WIN_INV_SIZE
-	var spacing := 8
-	var total_width := equip_size.x + spacing + inv_size.x
-	var start_x := int(GW - total_width - GameConstants.HUD_MARGIN) + equip_size.x + spacing
-	var start_y := int((GH - inv_size.y) / 2.0)
-
-	_inventory_panel = InventoryPanel.new()
-	_inventory_panel.position = Vector2(start_x, start_y)
-	_inventory_panel.visible = false
-	_inventory_panel.closed.connect(_toggle_inventory)
-	_inventory_panel.slot_gui_input.connect(_on_inventory_slot_gui_input)
-	_inventory_panel.slot_mouse_entered.connect(_on_inventory_slot_mouse_entered)
-	_inventory_panel.slot_mouse_exited.connect(_on_inventory_slot_mouse_exited)
-	ui_root.add_child(_inventory_panel)
-	_inv_root = _inventory_panel
-	_inv_slots = _inventory_panel.inv_slots
-
-
-func _on_inventory_slot_gui_input(idx: int, event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			if player and idx < player.inventory.size() and player.inventory[idx]:
-				if player.can_assign_quick_slot(player.inventory[idx]):
-					_start_item_drag(idx)
-		elif _drag_inv_index >= 0:
-			var quick_idx := _quick_slot_index_at(get_viewport().get_mouse_position())
-			if quick_idx >= 0:
-				_assign_quick_slot(quick_idx, _drag_inv_index)
-			else:
-				_cancel_item_drag()
-		get_viewport().set_input_as_handled()
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if player and idx < player.inventory.size():
-			var item: Variant = player.inventory[idx]
-			if item != null and ItemDatabase.is_potion(item):
-				var use_result: Dictionary = player.use_item_from_inventory_verbose(idx)
-				var msg := str(use_result.get("message", ""))
-				if use_result.get("ok", false) and msg != "":
-					add_log(msg, Color8(0x2e, 0xcc, 0x71))
-				elif msg != "":
-					add_log(msg, UITheme.MUTED)
-			else:
-				player.equip_item_from_inventory(idx)
-			_hide_item_tooltip()
-		get_viewport().set_input_as_handled()
-
-
 func _on_inventory_slot_mouse_entered(idx: int) -> void:
 	if player and idx < player.inventory.size():
 		var item = player.inventory[idx]
-		if item and _inventory_panel and _inventory_panel.inv_slots[idx].bg:
-			_show_item_tooltip(item, _inventory_panel.inv_slots[idx].bg.global_position, true)
+		if item and _bag_panel:
+			_show_item_tooltip(item, _bag_panel.get_inv_slot_global_pos(idx), true)
 
 
 func _on_inventory_slot_mouse_exited(_idx: int) -> void:
@@ -2010,8 +2034,6 @@ func _close_other_modals_except(keep: String) -> void:
 	if keep != "inventory" and is_inventory_open:
 		is_inventory_open = false
 		_animate_window(_inv_root, false)
-		if _equip_root:
-			_animate_window(_equip_root, false)
 	if keep != "skill" and is_skill_open:
 		is_skill_open = false
 		if _skill_root:
@@ -2051,6 +2073,8 @@ func _toggle_stat() -> void:
 	is_stat_open = not is_stat_open
 	_animate_window(_stat_panel, is_stat_open)
 	if is_stat_open:
+		if _stat_panel.has_method("ensure_expanded"):
+			_stat_panel.ensure_expanded()
 		_close_other_modals_except("stat")
 		_raise_modal_panel(_stat_panel)
 		_update_player_stats_ui()
@@ -2065,13 +2089,10 @@ func _toggle_inventory() -> void:
 		return
 	is_inventory_open = not is_inventory_open
 	_animate_window(_inv_root, is_inventory_open)
-	if _equip_root: _animate_window(_equip_root, is_inventory_open)
 	if is_inventory_open:
 		_close_other_modals_except("inventory")
 		_update_inventory_ui()
 		_update_equipment_ui()
-		# 🌟 ดันหน้าต่างกระเป๋าและสวมใส่ขึ้นมาด้านหน้าสุดตอนถูกเปิด
-		if _equip_root: _raise_modal_panel(_equip_root)
 		_raise_modal_panel(_inv_root)
 	else:
 		_hide_item_tooltip()
@@ -2316,52 +2337,40 @@ func _process(_delta: float) -> void:
 
 	_update_minimap_info()
 	_update_map_window_subtitle()
+	_update_target_hud()
 
-	_title_label.text = GlobalData.player_name if GlobalData.player_name != "" else "Adventurer"
-	if _job_hud_label:
-		_job_hud_label.text = "Lv.%d | %s J.Lv.%d" % [player.level, ClassDatabase.get_display_name(player.current_job), player.job_level]
-	if _zeny_hud_label:
-		_zeny_hud_label.text = "%d Z" % player.zeny
 
-	var hp_pct := clampf(float(player.hp) / player.max_hp, 0.0, 1.0)
-	_hp_bar.scale.x = hp_pct
-	_hp_text.text = "%d/%d" % [player.hp, player.max_hp]
+func _update_target_hud() -> void:
+	if not _target_hud_root:
+		return
+	var target: Variant = world.selected_target if is_instance_valid(world) else null
+	if not is_instance_valid(target) or not target.get("is_active_monster"):
+		_target_hud_root.visible = false
+		_target_hud_monster_id = ""
+		return
 
-	var sp_pct := clampf(float(player.sp) / player.max_sp, 0.0, 1.0)
-	_sp_bar.scale.x = sp_pct
-	_sp_text.text = "%d/%d" % [player.sp, player.max_sp]
+	_target_hud_root.visible = true
+	var m_id := str(target.get("monster_id") if target.get("monster_id") != null else "poring")
+	if m_id != _target_hud_monster_id:
+		_target_hud_monster_id = m_id
+		var m_data: Dictionary = MonsterDB.get_monster(m_id)
+		_target_name_label.text = str(m_data.get("name", "Monster"))
 
-	var xp_pct := clampf(float(player.current_exp) / player.max_exp, 0.0, 1.0)
-	_xp_bar.scale.x = xp_pct
-	_xp_text.text = "%d/%d" % [player.current_exp, player.max_exp]
+	var hp := int(target.get("hp") if target.get("hp") != null else 0)
+	var max_hp := int(target.get("max_hp") if target.get("max_hp") != null else 100)
+	var target_hp_pct := clampf(float(hp) / float(max_hp), 0.0, 1.0)
 
-	if world and is_instance_valid(world.get("selected_target")) and world.selected_target.get("is_active_monster"):
-		var target = world.selected_target
-		_target_hud_root.visible = true
-		var m_id = target.get("monster_id") if target.get("monster_id") != null else "poring"
-		var m_data = MonsterDB.get_monster(m_id)
-		var m_name = m_data.get("name", "Monster")
-		var hp = target.get("hp") if target.get("hp") != null else 0
-		var max_hp = target.get("max_hp") if target.get("max_hp") != null else 100
-		
-		_target_name_label.text = m_name
-		var target_hp_pct := clampf(float(hp) / float(max_hp), 0.0, 1.0)
-		
-		var current_scale_x = _target_hp_bar.scale.x
-		if absf(current_scale_x - target_hp_pct) > 0.001:
-			var tween_name = "hp_tween"
-			if _target_hp_bar.has_meta(tween_name) and _target_hp_bar.get_meta(tween_name):
-				_target_hp_bar.get_meta(tween_name).kill()
-			var hp_tween = create_tween()
-			_target_hp_bar.set_meta(tween_name, hp_tween)
-			hp_tween.tween_property(_target_hp_bar, "scale:x", target_hp_pct, 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-		_target_hp_text.text = "%d/%d" % [hp, max_hp]
-	else:
-		if _target_hud_root:
-			_target_hud_root.visible = false
-
-	if is_stat_open and _stat_panel and player:
-		_stat_panel.refresh(player)
+	var current_scale_x := _target_hp_bar.scale.x
+	if absf(current_scale_x - target_hp_pct) > 0.001:
+		const TWEEN_META := "hp_tween"
+		if _target_hp_bar.has_meta(TWEEN_META):
+			var existing: Variant = _target_hp_bar.get_meta(TWEEN_META)
+			if existing is Tween:
+				(existing as Tween).kill()
+		var hp_tween := create_tween()
+		_target_hp_bar.set_meta(TWEEN_META, hp_tween)
+		hp_tween.tween_property(_target_hp_bar, "scale:x", target_hp_pct, 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_target_hp_text.text = "%d/%d" % [hp, max_hp]
 
 
 # --- Public API ---

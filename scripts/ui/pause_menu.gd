@@ -97,24 +97,22 @@ func _style_button_container(box: VBoxContainer, panel_size: Vector2) -> void:
 			child.add_theme_stylebox_override("hover", hover)
 			child.add_theme_stylebox_override("pressed", hover)
 
-
 func _center_panels() -> void:
 	var main_size := MAIN_SIZE_DEBUG if AdminCheats.is_enabled() else MAIN_SIZE
 	main_panel.position = Vector2(
-		(GameConstants.GAME_WIDTH - main_size.x) / 2.0,
-		(GameConstants.GAME_HEIGHT - main_size.y) / 2.0
+		(float(GameConstants.GAME_WIDTH) - main_size.x) / 2.0,
+		(float(GameConstants.GAME_HEIGHT) - main_size.y) / 2.0
 	)
 	settings_panel.position = Vector2(
-		(GameConstants.GAME_WIDTH - SETTINGS_SIZE.x) / 2.0,
-		(GameConstants.GAME_HEIGHT - SETTINGS_SIZE.y) / 2.0
+		(float(GameConstants.GAME_WIDTH) - SETTINGS_SIZE.x) / 2.0,
+		(float(GameConstants.GAME_HEIGHT) - SETTINGS_SIZE.y) / 2.0
 	)
 	if _admin_panel:
 		_admin_panel.position = Vector2(
-			(GameConstants.GAME_WIDTH - ADMIN_SIZE.x) / 2.0,
-			(GameConstants.GAME_HEIGHT - ADMIN_SIZE.y) / 2.0
+			(float(GameConstants.GAME_WIDTH) - ADMIN_SIZE.x) / 2.0,
+			(float(GameConstants.GAME_HEIGHT) - ADMIN_SIZE.y) / 2.0
 		)
-
-
+		
 func _setup_admin_panel() -> void:
 	var admin_btn := Button.new()
 	admin_btn.text = "Admin Test (Debug)"
@@ -252,9 +250,8 @@ func _set_window_size(target_size: Vector2i) -> void:
 	var current_screen := DisplayServer.window_get_current_screen()
 	var screen_size := DisplayServer.screen_get_size(current_screen)
 	var screen_pos := DisplayServer.screen_get_position(current_screen)
-	var center_offset := (screen_size - target_size) / 2
-	DisplayServer.window_set_position(screen_pos + center_offset)
-
+	var center_offset := (Vector2(screen_size) - Vector2(target_size)) / 2.0
+	DisplayServer.window_set_position(screen_pos + Vector2i(center_offset))
 
 func _on_res_1080_pressed() -> void:
 	_set_window_size(Vector2i(1920, 1080))
