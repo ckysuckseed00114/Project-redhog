@@ -55,7 +55,7 @@ func get_monster(monster_id: String) -> Dictionary:
 	return get_monster_row(monster_id)
 
 
-static func merge_records(
+func merge_records(
 	base: Dictionary,
 	cloud: Dictionary,
 	overlay_keys: PackedStringArray,

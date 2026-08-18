@@ -66,8 +66,7 @@ const ITEMS := {
 	},
 }
 
-# Cloud (Supabase) may override these keys only.
-const CLOUD_OVERLAY_KEYS := PackedStringArray([
+const CLOUD_OVERLAY_KEYS := [
 	"name",
 	"type",
 	"price",
@@ -77,7 +76,7 @@ const CLOUD_OVERLAY_KEYS := PackedStringArray([
 	"defense",
 	"heal_hp",
 	"heal_sp",
-])
+]
 
 const CLOUD_KEY_ALIASES := {
 	"price": "buy_price",

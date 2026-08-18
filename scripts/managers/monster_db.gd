@@ -107,8 +107,8 @@ const MONSTERS := {
 	}
 }
 
-# Cloud (Supabase) may override these balance/display-name keys only.
-const CLOUD_OVERLAY_KEYS := PackedStringArray([
+# เปลี่ยนจาก const เป็น static var
+static var CLOUD_OVERLAY_KEYS := [
 	"name",
 	"hp",
 	"max_hp",
@@ -116,14 +116,13 @@ const CLOUD_OVERLAY_KEYS := PackedStringArray([
 	"def",
 	"attack",
 	"defense",
-])
+]
 
-const CLOUD_KEY_ALIASES := {
+static var CLOUD_KEY_ALIASES := {
 	"hp": "max_hp",
 	"attack": "atk",
 	"defense": "def",
 }
-
 
 static func get_monster(monster_id: String) -> Dictionary:
 	if monster_id.is_empty():
