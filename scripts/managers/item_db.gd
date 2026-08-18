@@ -1,7 +1,7 @@
 class_name ItemDatabase
 extends Node
 
-const ITEMS = {
+const ITEMS := {
 	"sword01": {
 		"id": "sword01",
 		"name": "Sword",
@@ -66,13 +66,44 @@ const ITEMS = {
 	},
 }
 
+# Cloud (Supabase) may override these keys only.
+const CLOUD_OVERLAY_KEYS := PackedStringArray([
+	"name",
+	"type",
+	"price",
+	"buy_price",
+	"sell_price",
+	"attack",
+	"defense",
+	"heal_hp",
+	"heal_sp",
+])
+
+const CLOUD_KEY_ALIASES := {
+	"price": "buy_price",
+}
+
+
 static func get_item(item_id: String) -> Dictionary:
-	if ITEMS.has(item_id):
-		var data = ITEMS[item_id].duplicate()
-		if not data.has("id"):
-			data["id"] = item_id
-		return data
-	return {}
+	if item_id.is_empty():
+		return {}
+
+	var local: Dictionary = ITEMS.get(item_id, {})
+	var cloud: Dictionary = CloudDB.get_item_row(item_id)
+
+	if local.is_empty() and cloud.is_empty():
+		return {}
+
+	var base := local.duplicate(true) if not local.is_empty() else _base_from_cloud_item(item_id, cloud)
+	var merged := CloudDB.merge_records(base, cloud, CLOUD_OVERLAY_KEYS, CLOUD_KEY_ALIASES)
+	_finalize_item_record(item_id, merged)
+	return merged
+
+
+static func get_local_item(item_id: String) -> Dictionary:
+	if not ITEMS.has(item_id):
+		return {}
+	return ITEMS[item_id].duplicate(true)
 
 
 static func is_potion(item: Dictionary) -> bool:
@@ -107,5 +138,20 @@ static func get_sell_price(item_id: String) -> int:
 	var sell_price := int(def.get("sell_price", 0))
 	if sell_price > 0:
 		return sell_price
-	var buy_price := int(def.get("buy_price", 0))
+	var buy_price := int(def.get("buy_price", def.get("price", 0)))
 	return int(float(buy_price) / 2.0) if buy_price > 0 else 0
+
+
+static func _base_from_cloud_item(item_id: String, cloud: Dictionary) -> Dictionary:
+	var base := cloud.duplicate(true)
+	base["id"] = str(cloud.get("item_id", item_id))
+	if cloud.has("price") and not base.has("buy_price"):
+		base["buy_price"] = int(cloud["price"])
+	return base
+
+
+static func _finalize_item_record(item_id: String, record: Dictionary) -> void:
+	if not record.has("id") or str(record.get("id", "")).is_empty():
+		record["id"] = item_id
+	if record.has("price") and not record.has("buy_price"):
+		record["buy_price"] = int(record["price"])

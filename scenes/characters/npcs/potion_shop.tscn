@@ -1,6 +1,11 @@
 [gd_scene format=3 uid="uid://c8potionnpc01"]
 
 [ext_resource type="PackedScene" uid="uid://bc3sx8pyrjrwx" path="res://scenes/characters/npc.tscn" id="1_npc"]
+[ext_resource type="Texture2D" uid="uid://crgdq34yoyq6" path="res://scenes/maps/npc/npc_potion.png" id="2_rac4q"]
 
-[node name="PotionShop" instance=ExtResource("1_npc")]
+[node name="PotionShop" unique_id=884342796 instance=ExtResource("1_npc")]
 npc_id = "potion_shop"
+
+[node name="Sprite2D" parent="." index="0" unique_id=220856885]
+scale = Vector2(0.19, 0.19)
+texture = ExtResource("2_rac4q")

@@ -1,9 +1,6 @@
 class_name MonsterDB
 extends Node
 
-# --- ปรับขนาดมอนสเตอร์: แก้แค่ display_height ต่อตัวใน MONSTERS ---
-# body_radius / click_radius คำนวณอัตโนมัติจาก display_height (override ได้ถ้าต้องการ)
-
 const DEFAULT_DISPLAY_HEIGHT := 48.0
 const DEFAULT_BODY_RADIUS_RATIO := 0.17
 const DEFAULT_CLICK_RADIUS_RATIO := 0.62
@@ -17,7 +14,7 @@ const SPRITE_FOLDER_DEFAULTS := {
 	"jibby": { "display_height": 58.0 },
 }
 
-const MONSTERS = {
+const MONSTERS := {
 	"poring": {
 		"name": "Poring",
 		"sprite_folder": "grassy",
@@ -110,11 +107,44 @@ const MONSTERS = {
 	}
 }
 
+# Cloud (Supabase) may override these balance/display-name keys only.
+const CLOUD_OVERLAY_KEYS := PackedStringArray([
+	"name",
+	"hp",
+	"max_hp",
+	"atk",
+	"def",
+	"attack",
+	"defense",
+])
+
+const CLOUD_KEY_ALIASES := {
+	"hp": "max_hp",
+	"attack": "atk",
+	"defense": "def",
+}
+
 
 static func get_monster(monster_id: String) -> Dictionary:
-	if MONSTERS.has(monster_id):
-		return MONSTERS[monster_id].duplicate()
-	return {}
+	if monster_id.is_empty():
+		return {}
+
+	var local: Dictionary = MONSTERS.get(monster_id, {})
+	var cloud: Dictionary = CloudDB.get_monster_row(monster_id)
+
+	if local.is_empty() and cloud.is_empty():
+		return {}
+
+	var base := local.duplicate(true) if not local.is_empty() else _base_from_cloud_monster(monster_id, cloud)
+	var merged := CloudDB.merge_records(base, cloud, CLOUD_OVERLAY_KEYS, CLOUD_KEY_ALIASES)
+	_finalize_monster_record(monster_id, merged)
+	return merged
+
+
+static func get_local_monster(monster_id: String) -> Dictionary:
+	if not MONSTERS.has(monster_id):
+		return {}
+	return MONSTERS[monster_id].duplicate(true)
 
 
 static func get_sprite_folder(monster_id: String) -> String:
@@ -148,3 +178,20 @@ static func apply_sprite_visual(sprite: AnimatedSprite2D, data: Dictionary) -> D
 	if sprite != null and not str(visual.get("sprite_folder", "")).is_empty():
 		MonsterSpriteLoader.apply_visual(sprite, visual)
 	return visual
+
+
+static func _base_from_cloud_monster(monster_id: String, cloud: Dictionary) -> Dictionary:
+	var base := cloud.duplicate(true)
+	if cloud.has("hp") and not base.has("max_hp"):
+		base["max_hp"] = int(cloud["hp"])
+	base["monster_id"] = str(cloud.get("monster_id", monster_id))
+	return base
+
+
+static func _finalize_monster_record(monster_id: String, record: Dictionary) -> void:
+	if record.has("hp") and not record.has("max_hp"):
+		record["max_hp"] = int(record["hp"])
+	elif record.has("max_hp") and not record.has("hp"):
+		record["hp"] = int(record["max_hp"])
+	if not record.has("monster_id"):
+		record["monster_id"] = monster_id

@@ -17,6 +17,19 @@ static func normalize_scene_path(path: String) -> String:
 	return path
 
 
+static func resolve_scene_path(path: String) -> String:
+	if path == "":
+		return ""
+	if path.begins_with("uid://"):
+		var uid := ResourceUID.text_to_id(path)
+		if uid != ResourceUID.INVALID_ID:
+			var resolved := ResourceUID.get_id_path(uid)
+			if resolved != "":
+				return normalize_scene_path(resolved)
+		return path
+	return normalize_scene_path(path)
+
+
 static func execute(tree: SceneTree, target_scene: String, spawn_pos: Vector2, destination_name: String, player: Player = null) -> void:
 	var scene_path := normalize_scene_path(target_scene)
 	if scene_path == "":

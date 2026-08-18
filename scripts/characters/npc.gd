@@ -223,21 +223,23 @@ func _is_closest_interact_npc() -> bool:
 			closest = npc
 	return closest == self
 
-func try_interact_at(world_pos: Vector2) -> bool:
-	var metrics := _get_sprite_metrics()
-	var center_global := to_global(metrics["center"] as Vector2)
-	if center_global.distance_to(world_pos) > GameConstants.NPC_INTERACT_RANGE:
+func try_interact_at(_world_pos: Vector2) -> bool:
+	if is_chatting:
 		return false
-	return _try_interact()
+	var p = _get_player()
+	if p:
+		player_ref = p
+	_open_chat()
+	return true
 
 func _try_interact() -> bool:
 	if is_chatting:
 		return false
 	if not _is_player_in_range():
-		var ui := UiAccess.get_ui(self)
-		if ui and ui.has_method("add_log"):
-			ui.add_log("เข้าใกล้ %s ก่อน" % npc_name, UITheme.MUTED)
 		return false
+	var p = _get_player()
+	if p:
+		player_ref = p
 	_open_chat()
 	return true
 

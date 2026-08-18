@@ -29,9 +29,7 @@ func unregister_world() -> void:
 
 
 func _process(delta: float) -> void:
-	WorldSyncManager.tick_global(delta)
-	if _world and is_instance_valid(_world):
-		WorldSyncManager.tick_world(delta)
+	WorldSyncManager.tick(delta)
 	_timer_refresh_accum += delta
 	if _timer_refresh_accum >= TIMER_REFRESH_INTERVAL:
 		_timer_refresh_accum = 0.0

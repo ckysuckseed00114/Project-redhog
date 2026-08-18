@@ -13,6 +13,15 @@ var _save_results: Dictionary = {}
 const SAVE_TIMEOUT_SEC := 45.0
 
 
+func _character_query(char_id: String) -> String:
+	return "character_id=eq." + char_id.uri_encode()
+
+
+func _safe_callback(callback: Callable, value: Variant) -> void:
+	if callback.is_valid():
+		callback.call(value)
+
+
 func _db_int(value: Variant, default_val: int = 0) -> int:
 	if value == null:
 		return default_val
@@ -39,8 +48,6 @@ func _emit_save_completed(success: bool) -> void:
 
 # --- Save ---
 
-# ตัวอย่างโค้ดใน database_manager.gd
-
 func save_game_data(player: Player) -> int:
 	if not _can_cloud_save():
 		return 0
@@ -59,12 +66,6 @@ func save_game_data(player: Player) -> int:
 		_run_next_save()
 
 	return save_id
-
-func _on_inventory_saved(success: bool, _response: Variant) -> void:
-	if success:
-		print("✅ กระเป๋าเซฟสำเร็จ ไม่มี Error กวนใจ!")
-	else:
-		print("❌ เซฟกระเป๋าไม่สำเร็จ")
 
 
 func wait_for_save_id(save_id: int) -> bool:
@@ -127,7 +128,8 @@ func _capture_payload(player: Player) -> Dictionary:
 		GlobalData.character_id = user_id + "_" + str(Time.get_ticks_msec())
 
 	var char_id := GlobalData.character_id
-	print("กำลังเตรียมข้อมูลบันทึกสำหรับ Character ID: ", char_id)
+	if OS.is_debug_build():
+		print("กำลังเตรียมข้อมูลบันทึกสำหรับ Character ID: ", char_id)
 
 	var player_row := {
 		"user_id": user_id,
@@ -218,7 +220,7 @@ func _persist_payload(payload: Dictionary, done: Callable) -> void:
 			finish.call(false)
 		, CONNECT_ONE_SHOT)
 
-	var query := "character_id=eq." + char_id.uri_encode()
+	var query := _character_query(char_id)
 	SupabaseClient.update_data("players", query, player_row, func(success: bool, _res: Variant) -> void:
 		if not is_instance_valid(self):
 			return
@@ -244,29 +246,28 @@ func _safe_done(done: Callable, success: bool) -> void:
 
 func _sync_related_tables(payload: Dictionary, done: Callable) -> void:
 	var char_id: String = str(payload.get("character_id", ""))
-	var eq_query := "character_id=eq." + char_id.uri_encode()
-	SupabaseClient.delete_data("player_equipment", eq_query, func(eq_del_ok: bool) -> void:
+	if char_id == "":
+		_safe_done(done, false)
+		return
+
+	# 🌟 ตัดการใช้ DELETE ทิ้ง เพื่อป้องกันปัญหา Race Condition และ Error 409 Duplicate Key
+	# ให้ใช้ระบบ Upsert (merge-duplicates) ยิงทับอัปเดตข้อมูลเดิมได้ทันทีอย่างปลอดภัย
+	_upsert_equipment_records(payload, func(eq_ok: bool) -> void:
 		if not is_instance_valid(self):
 			return
-		if not eq_del_ok:
-			push_warning("Cloud save: player_equipment delete failed; continuing upsert")
-		_upsert_equipment_records(payload, func(eq_ok: bool) -> void:
+		if not eq_ok:
+			push_warning("Cloud save: player_equipment upsert failed")
+			_safe_done(done, false)
+			return
+			
+		_upsert_inventory_records(payload, func(inv_ok: bool) -> void:
 			if not is_instance_valid(self):
 				return
-			if not eq_ok:
-				_safe_done(done, false)
-				return
-			var inv_query := "character_id=eq." + char_id.uri_encode()
-			SupabaseClient.delete_data("player_inventory", inv_query, func(inv_del_ok: bool) -> void:
-				if not is_instance_valid(self):
-					return
-				if not inv_del_ok:
-					push_warning("Cloud save: player_inventory delete failed; continuing upsert")
-				_upsert_inventory_records(payload, done)
-			)
+			if not inv_ok:
+				push_warning("Cloud save: player_inventory upsert failed")
+			_safe_done(done, inv_ok)
 		)
 	)
-
 
 func _upsert_equipment_records(payload: Dictionary, done: Callable) -> void:
 	var records: Array = payload.get("equipment_records", [])
@@ -285,6 +286,10 @@ func _upsert_inventory_records(payload: Dictionary, done: Callable) -> void:
 
 
 func _wait_for_upserts(records: Array, table: String, done: Callable) -> void:
+	if records.is_empty():
+		_safe_done(done, true)
+		return
+
 	var remaining_count: Array[int] = [records.size()]
 	var failed_flag: Array[bool] = [false]
 
@@ -297,34 +302,29 @@ func _wait_for_upserts(records: Array, table: String, done: Callable) -> void:
 
 	for record in records:
 		if not record is Dictionary:
-			finish_one.call(true)
+			finish_one.call(false)
 			continue
 
-		var char_id := str(record.get("character_id", "")).uri_encode()
-		var query := "character_id=eq." + char_id
-		if table == "player_equipment":
-			query += "&slot_key=eq." + str(record.get("slot_key", "")).uri_encode()
-		else:
-			query += "&slot_index=eq." + str(record.get("slot_index", "")).uri_encode()
-
-		# 🌟 1. สั่ง UPDATE ของเดิมก่อนเลย (ถ้ามีของอยู่แล้วมันจะทับให้ทันที)
-		SupabaseClient.update_data(table, query, record, func(upd_ok: bool, res: Variant) -> void:
-			# เช็กว่ามีข้อมูลให้ Update ไหม? (ถ้าล้มเหลว หรือ อัปเดตผ่านแต่ไม่มีข้อมูลในตาราง)
-			var needs_insert: bool = false
-			if not upd_ok:
-				needs_insert = true
-			elif res is Array and res.is_empty():
-				needs_insert = true
-				
-			# 🌟 2. ถ้ามีข้อมูลและอัปเดตสำเร็จ จบงานเลย ไม่ต้อง Insert
-			if not needs_insert:
-				finish_one.call(upd_ok)
-				return
-				
-			# 🌟 3. ถ้าไม่มีข้อมูลในช่องนั้นจริงๆ ค่อยยิงคำสั่ง INSERT สร้างใหม่
-			SupabaseClient.insert_data(table, record, func(ins_ok: bool, _ins_res: Variant) -> void:
-				finish_one.call(ins_ok)
-			)
+		var row: Dictionary = record
+		var url := SupabaseConfig.url + table
+		var auth_token := SupabaseClient._auth_bearer()
+		var headers := PackedStringArray([
+			"apikey: " + SupabaseConfig.anon_key,
+			"Authorization: Bearer " + auth_token,
+			"Content-Type: application/json",
+			"Prefer: resolution=merge-duplicates, return=minimal"
+		])
+		
+		SupabaseClient._dispatch_http(
+			url, 
+			headers, 
+			HTTPClient.METHOD_POST, 
+			JSON.stringify(row), 
+			func(result: int, response_code: int, _headers_res: PackedStringArray, _body: PackedByteArray) -> void:
+				var is_ok := result == HTTPRequest.RESULT_SUCCESS and response_code >= 200 and response_code < 300
+				if not is_ok and OS.is_debug_build():
+					push_warning("Upsert failed for %s: HTTP %d" % [table, response_code])
+				finish_one.call(is_ok)
 		)
 
 func _apply_player_stats_from_row(p: Player, row: Dictionary) -> void:
@@ -392,7 +392,28 @@ func _finish_player_load(player: Player) -> void:
 	_apply_pending_save_point_revive(player)
 
 
-func load_game_data(player) -> void:
+func _apply_warp_spawn_if_pending(p: Player) -> void:
+	var warp_pos: Variant = GlobalData.take_warp_spawn_position()
+	if warp_pos is Vector2:
+		p.global_position = warp_pos
+
+
+func _apply_cloud_position(p: Player, p_data: Dictionary) -> void:
+	var warp_pos: Variant = GlobalData.take_warp_spawn_position()
+	if warp_pos is Vector2:
+		p.global_position = warp_pos
+		return
+	if not p_data.has("pos_x") or not p_data.has("pos_y"):
+		return
+	var px := float(p_data.get("pos_x", 0))
+	var py := float(p_data.get("pos_y", 0))
+	if px == 0.0 and py == 0.0:
+		p.global_position = Vector2(GameConstants.MAP_WORLD_WIDTH / 2.0, GameConstants.MAP_WORLD_HEIGHT / 2.0)
+	else:
+		p.global_position = Vector2(px, py)
+
+
+func load_game_data(player: Player) -> void:
 	if not player:
 		return
 
@@ -401,21 +422,23 @@ func load_game_data(player) -> void:
 		_finish_player_load(player)
 		return
 
-	var char_id = GlobalData.character_id
+	var char_id := GlobalData.character_id
 	if char_id == "":
-		print("❌ ไม่สามารถโหลดได้ เนื่องจากยังไม่ได้เลือกตัวละคร")
+		if OS.is_debug_build():
+			print("❌ ไม่สามารถโหลดได้ เนื่องจากยังไม่ได้เลือกตัวละคร")
 		_apply_load_fallback(player)
 		_finish_player_load(player)
 		return
 
-	print("กำลังโหลดข้อมูลสำหรับ Character ID: ", char_id)
+	if OS.is_debug_build():
+		print("กำลังโหลดข้อมูลสำหรับ Character ID: ", char_id)
 
-	var player_ref = weakref(player)
-	var query = "character_id=eq." + char_id.uri_encode()
+	var player_ref: WeakRef = weakref(player)
+	var query := _character_query(char_id)
 
-	SupabaseClient.fetch_data("players", query, func(success, response):
-		var p = player_ref.get_ref()
-		if not p:
+	SupabaseClient.fetch_data("players", query, func(success: bool, response: Variant) -> void:
+		var p: Player = player_ref.get_ref() as Player
+		if p == null:
 			return
 
 		if PlayerSaveStash.has_pending():
@@ -424,16 +447,15 @@ func load_game_data(player) -> void:
 			return
 
 		if not success:
-			print("❌ โหลดข้อมูลจาก Cloud ล้มเหลว (กำลังใช้ค่าเริ่มต้น)")
+			if OS.is_debug_build():
+				print("❌ โหลดข้อมูลจาก Cloud ล้มเหลว (กำลังใช้ค่าเริ่มต้น)")
 			_apply_load_fallback(p)
-			var warp_pos_fail: Variant = GlobalData.take_warp_spawn_position()
-			if warp_pos_fail != null:
-				p.global_position = warp_pos_fail
+			_apply_warp_spawn_if_pending(p)
 			_finish_player_load(p)
 			return
 
-		if response is Array and response.size() > 0:
-			var p_data: Dictionary = response[0]
+		if response is Array and not (response as Array).is_empty():
+			var p_data: Dictionary = (response as Array)[0]
 			_apply_player_from_cloud_row(p, p_data)
 			_clear_pending_created_character(char_id)
 
@@ -443,17 +465,7 @@ func load_game_data(player) -> void:
 			else:
 				p.quick_slots = [null, null, null, null, null, null]
 
-			var warp_pos: Variant = GlobalData.take_warp_spawn_position()
-			if warp_pos != null:
-				p.global_position = warp_pos
-			elif p_data.has("pos_x") and p_data.has("pos_y"):
-				var px := float(p_data.get("pos_x", 0))
-				var py := float(p_data.get("pos_y", 0))
-				if px == 0.0 and py == 0.0:
-					p.global_position = Vector2(GameConstants.MAP_WORLD_WIDTH / 2.0, GameConstants.MAP_WORLD_HEIGHT / 2.0)
-				else:
-					p.global_position = Vector2(px, py)
-
+			_apply_cloud_position(p, p_data)
 			_load_equipment(p, char_id)
 			_load_inventory(p, char_id)
 			_apply_quests_after_load(p, p_data)
@@ -463,11 +475,10 @@ func load_game_data(player) -> void:
 				if ui and ui.has_method("show_notification"):
 					ui.show_notification("Game Loaded from Cloud!", Color8(0x34, 0x98, 0xdb))
 		else:
-			print("❌ ไม่พบข้อมูลเซฟของตัวละครนี้บน Cloud (กำลังใช้งานค่าเริ่มต้น)")
+			if OS.is_debug_build():
+				print("❌ ไม่พบข้อมูลเซฟของตัวละครนี้บน Cloud (กำลังใช้งานค่าเริ่มต้น)")
 			_apply_load_fallback(p)
-			var warp_pos: Variant = GlobalData.take_warp_spawn_position()
-			if warp_pos != null:
-				p.global_position = warp_pos
+			_apply_warp_spawn_if_pending(p)
 
 		_finish_player_load(p)
 	)
@@ -481,37 +492,44 @@ func _apply_pending_save_point_revive(player: Player) -> void:
 		player.restore_after_save_point_revive()
 
 
-func _load_equipment(player, char_id: String) -> void:
-	var player_ref = weakref(player)
-	var query = "character_id=eq." + char_id.uri_encode()
-	SupabaseClient.fetch_data("player_equipment", query, func(success, response):
-		var p = player_ref.get_ref()
-		if not p:
+func _load_equipment(player: Player, char_id: String) -> void:
+	var player_ref: WeakRef = weakref(player)
+	var query := _character_query(char_id)
+	SupabaseClient.fetch_data("player_equipment", query, func(success: bool, response: Variant) -> void:
+		var p: Player = player_ref.get_ref() as Player
+		if p == null:
 			return
 
 		if success and response is Array:
-			for row in response:
-				var slot_key = row.get("slot_key")
-				var item_data = row.get("item_data")
-				if p and slot_key in p.equipment:
+			for row_variant in response as Array:
+				if not row_variant is Dictionary:
+					continue
+				var row: Dictionary = row_variant
+				var slot_key: Variant = row.get("slot_key")
+				var item_data: Variant = row.get("item_data")
+				if slot_key is String and slot_key in p.equipment:
 					p.equipment[slot_key] = item_data
-			print("✅ โหลดข้อมูลอุปกรณ์สวมใส่สำเร็จ")
+			if OS.is_debug_build():
+				print("✅ โหลดข้อมูลอุปกรณ์สวมใส่สำเร็จ")
 			p.equipment_changed.emit()
 	)
 
 
-func _load_inventory(player, char_id: String) -> void:
-	var player_ref = weakref(player)
-	var query = "character_id=eq." + char_id.uri_encode()
-	SupabaseClient.fetch_data("player_inventory", query, func(success, response):
-		var p = player_ref.get_ref()
-		if not p:
+func _load_inventory(player: Player, char_id: String) -> void:
+	var player_ref: WeakRef = weakref(player)
+	var query := _character_query(char_id)
+	SupabaseClient.fetch_data("player_inventory", query, func(success: bool, response: Variant) -> void:
+		var p: Player = player_ref.get_ref() as Player
+		if p == null:
 			return
 
 		if success and response is Array:
-			for row in response:
-				var slot_index = row.get("slot_index", 0)
-				var item_data = row.get("item_data")
+			for row_variant in response as Array:
+				if not row_variant is Dictionary:
+					continue
+				var row: Dictionary = row_variant
+				var slot_index := _db_int(row.get("slot_index", 0))
+				var item_data: Variant = row.get("item_data")
 				var saved_id := str(row.get("item_id", ""))
 				if item_data is Dictionary:
 					item_data = item_data.duplicate(true)
@@ -521,14 +539,15 @@ func _load_inventory(player, char_id: String) -> void:
 						item_data["id"] = ItemDatabase.resolve_item_id(item_data)
 				elif saved_id != "":
 					item_data = ItemDatabase.get_item(saved_id)
-				if p and slot_index >= 0 and slot_index < p.inventory.size():
+				if slot_index >= 0 and slot_index < p.inventory.size():
 					p.inventory[slot_index] = item_data
-			print("✅ โหลดข้อมูลกระเป๋าสำเร็จ")
+			if OS.is_debug_build():
+				print("✅ โหลดข้อมูลกระเป๋าสำเร็จ")
 			p.inventory_changed.emit()
 	)
 
 
-func _resolve_save_scene(player) -> String:
+func _resolve_save_scene(player: Player) -> String:
 	return SceneContext.from_player(player)
 
 
@@ -570,21 +589,15 @@ func _normalize_finished_quests(raw: Variant) -> Array[String]:
 # --- Validation ---
 
 func check_name_available(desired_name: String, callback: Callable) -> void:
-	if desired_name.strip_edges() == "":
-		if callback.is_valid():
-			callback.call(false)
+	var trimmed := desired_name.strip_edges()
+	if trimmed == "":
+		_safe_callback(callback, false)
 		return
 
-	var query = "name=eq." + desired_name.uri_encode()
-
-	SupabaseClient.fetch_data("players", query, func(success, response):
-		if success and response is Array:
-			var is_available = response.is_empty()
-			if callback.is_valid():
-				callback.call(is_available)
-		else:
-			if callback.is_valid():
-				callback.call(false)
+	var query := "name=eq." + trimmed.uri_encode()
+	SupabaseClient.fetch_data("players", query, func(success: bool, response: Variant) -> void:
+		var available := success and response is Array and (response as Array).is_empty()
+		_safe_callback(callback, available)
 	)
 
 
@@ -592,8 +605,7 @@ func delete_character(character_id: String, callback: Callable) -> void:
 	var user_id := SupabaseClient.current_user_id
 	var cid := character_id.strip_edges()
 	if user_id == "" or cid == "":
-		if callback.is_valid():
-			callback.call(false)
+		_safe_callback(callback, false)
 		return
 
 	var query := "character_id=eq.%s&user_id=eq.%s" % [cid.uri_encode(), user_id.uri_encode()]

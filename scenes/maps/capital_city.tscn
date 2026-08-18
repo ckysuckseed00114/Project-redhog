@@ -10,9 +10,13 @@
 [ext_resource type="Texture2D" uid="uid://bf34mr82x8bxm" path="res://animation/npcs/warpguide/4.png" id="8_s7s0r"]
 [ext_resource type="Texture2D" uid="uid://d3cme0hsxrm4k" path="res://animation/npcs/jobmaster.png" id="9_o2slv"]
 [ext_resource type="PackedScene" uid="uid://c8shopnpc01" path="res://scenes/characters/shop_npc.tscn" id="10_shop"]
+[ext_resource type="Texture2D" uid="uid://ban0lmn2da67q" path="res://scenes/maps/npc/Layer 2.png" id="11_o2slv"]
 [ext_resource type="PackedScene" uid="uid://c8potionnpc01" path="res://scenes/characters/npcs/potion_shop.tscn" id="11_potion"]
 [ext_resource type="PackedScene" uid="uid://c8weaponnpc01" path="res://scenes/characters/npcs/weapon_shop.tscn" id="12_weapon"]
+[ext_resource type="Texture2D" uid="uid://bqaamckhwvt7b" path="res://scenes/maps/npc/Layer 4.png" id="13_o2slv"]
 [ext_resource type="PackedScene" uid="uid://bd3tfsgtyglb5" path="res://scenes/characters/npcs/upgrade_master.tscn" id="13_upgrade"]
+[ext_resource type="Texture2D" uid="uid://qqc26k4sf7ni" path="res://scenes/maps/npc/Layer 1.png" id="14_o2slv"]
+[ext_resource type="Texture2D" uid="uid://kxoc8tscrgv0" path="res://scenes/maps/npc/11.png" id="15_njstu"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_detect"]
 size = Vector2(32, 20)
@@ -95,7 +99,7 @@ target_scene = "uid://cbkkx7cktbxvv"
 destination_name = "Training Field"
 spawn_position = Vector2(638, 80)
 
-[node name="PortalWest" parent="." groups=["portal"] instance=ExtResource("2_pjic3")]
+[node name="PortalWest" parent="." unique_id=380098457 groups=["portal"] instance=ExtResource("2_pjic3")]
 position = Vector2(16, 400)
 target_scene = "res://scenes/maps/west_field.tscn"
 destination_name = "West Field"
@@ -104,11 +108,11 @@ spawn_position = Vector2(1240, 400)
 [node name="Ground" type="Sprite2D" parent="." unique_id=1992098597]
 
 [node name="quest board" parent="." unique_id=430187628 instance=ExtResource("3_6njqs")]
-position = Vector2(634, 407)
+position = Vector2(616, 369)
 npc_id = "quest_board"
 
 [node name="WarpGuide" type="Area2D" parent="." unique_id=1880706498]
-position = Vector2(520, 520)
+position = Vector2(247, 489)
 script = ExtResource("4_naylo")
 npc_id = "warp_guide"
 foot_ui_extra_offset = Vector2(-3, 0)
@@ -157,16 +161,39 @@ libraries/ = SubResource("AnimationLibrary_jobmaster")
 autoplay = &"idle"
 
 [node name="ShopNPC" parent="." unique_id=1563478538 instance=ExtResource("10_shop")]
+position = Vector2(420, 373)
+
+[node name="Sprite2D" parent="ShopNPC" index="0" unique_id=220856885]
+scale = Vector2(0.19, 0.19)
+texture = ExtResource("11_o2slv")
 
 [node name="PotionShop" parent="." unique_id=1021269862 instance=ExtResource("11_potion")]
-position = Vector2(480, 421)
+position = Vector2(325, 373)
 
 [node name="WeaponShop" parent="." unique_id=428683731 instance=ExtResource("12_weapon")]
-position = Vector2(600, 421)
+position = Vector2(518, 370)
+
+[node name="Sprite2D" parent="WeaponShop" index="0" unique_id=220856885]
+scale = Vector2(0.19, 0.19)
+texture = ExtResource("13_o2slv")
 
 [node name="SavePoint" parent="." unique_id=161564717 instance=ExtResource("3_6njqs")]
-position = Vector2(440, 560)
+position = Vector2(804, 373)
 npc_id = "save_point"
 
+[node name="Sprite2D" parent="SavePoint" index="0" unique_id=220856885]
+scale = Vector2(0.4, 0.4)
+texture = ExtResource("15_njstu")
+
 [node name="UpgradeMaster" parent="." unique_id=1897363058 instance=ExtResource("13_upgrade")]
-position = Vector2(780, 421)
+position = Vector2(647, 167)
+
+[node name="Sprite2D" parent="UpgradeMaster" index="0" unique_id=220856885]
+scale = Vector2(0.19, 0.19)
+texture = ExtResource("14_o2slv")
+
+[editable path="ShopNPC"]
+[editable path="PotionShop"]
+[editable path="WeaponShop"]
+[editable path="SavePoint"]
+[editable path="UpgradeMaster"]

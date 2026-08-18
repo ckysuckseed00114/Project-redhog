@@ -15,11 +15,14 @@ const GH := GameConstants.GAME_HEIGHT
 
 var _action_bar: Panel
 
-var world: World
+var world: BaseMap
 var player: Player
 var _pause_menu: Node
 var _last_minimap_tile: Vector2i = Vector2i(-999999, -999999)
+var _last_map_subtitle_tile: Vector2i = Vector2i(-999999, -999999)
 var _target_hud_monster_id: String = ""
+var _target_hud_last_hp: int = -1
+var _target_hud_last_max_hp: int = -1
 var chat_log_instance: ChatLog
 var _shop_panel: ShopPanel
 var is_stat_open: bool = false
@@ -159,19 +162,21 @@ func _update_player_stats_ui() -> void:
 
 
 func _connect_world() -> void:
-	world = get_tree().get_first_node_in_group("world") as World
-	if world:
-		player = world.get_player()
-		if player:
-			if player.has_signal("inventory_changed"):
-				player.inventory_changed.connect(_on_inventory_changed)
-			if player.has_signal("equipment_changed"):
-				player.equipment_changed.connect(_update_equipment_ui)
-			if player.has_signal("stats_changed"):
-				player.stats_changed.connect(_update_player_stats_ui)
-			if player.has_signal("quests_changed"):
-				player.quests_changed.connect(refresh_quest_log)
-		_build_ui()
+	var parent_map := get_parent()
+	if parent_map is BaseMap:
+		world = parent_map as BaseMap
+	else:
+		world = get_tree().get_first_node_in_group("world") as BaseMap
+	if world == null:
+		return
+	player = world.get_player()
+	if player == null:
+		return
+	player.inventory_changed.connect(_on_inventory_changed)
+	player.equipment_changed.connect(_update_equipment_ui)
+	player.stats_changed.connect(_update_player_stats_ui)
+	player.quests_changed.connect(refresh_quest_log)
+	_build_ui()
 
 
 func _get_pause_menu() -> Node:
@@ -224,6 +229,16 @@ func is_point_over_ui(pos: Vector2) -> bool:
 	return _rect_blocks_click(pos)
 
 
+func blocks_world_click_at(screen_pos: Vector2) -> bool:
+	# ใช้เฉพาะ rect ของ HUD/หน้าต่าง — ไม่ใช้ gui_get_hovered_control()
+	# เพราะ hover อาจชี้ control ที่ไม่ได้อยู่ใต้จุดคลิก ทำให้คลิกพื้นไม่เดิน
+	return _rect_blocks_click(screen_pos)
+
+
+func _invalidate_map_subtitle_cache() -> void:
+	_last_map_subtitle_tile = Vector2i(-999999, -999999)
+
+
 func _panel_screen_rect(panel: Control) -> Rect2:
 	if panel == null or not panel.visible:
 		return Rect2()
@@ -239,8 +254,8 @@ func _rect_blocks_click(pos: Vector2) -> bool:
 	if is_death_dialog_open:
 		return true
 		
-	# 🌟 เพิ่มการเช็กคลิกเมาส์บนหน้าต่าง Pause Menu กลางเกม
-	var pause_menu = get_tree().root.get_node_or_null("PauseMenu")
+	# Pause Menu overlay
+	var pause_menu := _get_pause_menu()
 	if pause_menu and pause_menu.visible:
 		return true
 		
@@ -1079,6 +1094,7 @@ func _show_current_map_view() -> void:
 	if _map_hint_label:
 		_map_hint_label.visible = true
 	_set_map_window_title("CURRENT MAP")
+	_invalidate_map_subtitle_cache()
 	_update_map_window_subtitle()
 
 
@@ -1097,6 +1113,7 @@ func _show_world_map_view() -> void:
 	if _map_hint_label:
 		_map_hint_label.visible = false
 	_set_map_window_title("WORLD MAP")
+	_invalidate_map_subtitle_cache()
 	_update_map_window_subtitle()
 
 
@@ -1105,15 +1122,20 @@ func _update_map_window_subtitle() -> void:
 		return
 	if _map_showing_world:
 		_map_subtitle_label.text = "Capital (North)  ·  Training Field (South)"
-	elif is_instance_valid(player):
-		var pos := player.global_position
-		_map_subtitle_label.text = "%s  X:%d  Y:%d" % [
-			ProjectPaths.get_map_display_name(world),
-			int(pos.x),
-			int(pos.y)
-		]
-	else:
+		return
+	if not is_instance_valid(player):
 		_map_subtitle_label.text = ProjectPaths.get_map_display_name(world)
+		return
+	var pos := player.global_position
+	var tile := Vector2i(int(pos.x), int(pos.y))
+	if tile == _last_map_subtitle_tile:
+		return
+	_last_map_subtitle_tile = tile
+	_map_subtitle_label.text = "%s  X:%d  Y:%d" % [
+		ProjectPaths.get_map_display_name(world),
+		tile.x,
+		tile.y
+	]
 
 
 func _set_map_window_title(title: String) -> void:
@@ -2022,6 +2044,8 @@ func _toggle_map() -> void:
 		_map_showing_world = false
 		_show_current_map_view()
 		_close_other_modals_except("map")
+	else:
+		_invalidate_map_subtitle_cache()
 	_animate_window(_map_root, is_map_open)
 	_hide_item_tooltip()
 	_layout_open_windows()
@@ -2331,35 +2355,47 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(_delta: float) -> void:
 	if is_drag_active():
 		_update_drag_preview_pos()
-
 	if not player or not world:
 		return
-
 	_update_minimap_info()
-	_update_map_window_subtitle()
-	_update_target_hud()
+	if is_map_open:
+		_update_map_window_subtitle()
+	if world is World:
+		_update_target_hud()
 
 
 func _update_target_hud() -> void:
 	if not _target_hud_root:
 		return
-	var target: Variant = world.selected_target if is_instance_valid(world) else null
-	if not is_instance_valid(target) or not target.get("is_active_monster"):
-		_target_hud_root.visible = false
-		_target_hud_monster_id = ""
+	if not (world is World):
+		return
+	var w := world as World
+	var target: CharacterBody2D = w.selected_target if is_instance_valid(w.selected_target) else null
+	if target == null or not target.get("is_active_monster"):
+		if _target_hud_root.visible:
+			_target_hud_root.visible = false
+			_target_hud_monster_id = ""
+			_target_hud_last_hp = -1
+			_target_hud_last_max_hp = -1
 		return
 
 	_target_hud_root.visible = true
-	var m_id := str(target.get("monster_id") if target.get("monster_id") != null else "poring")
+	var m_id := str(target.monster_id) if "monster_id" in target and target.monster_id != null else "poring"
 	if m_id != _target_hud_monster_id:
 		_target_hud_monster_id = m_id
+		_target_hud_last_hp = -1
+		_target_hud_last_max_hp = -1
 		var m_data: Dictionary = MonsterDB.get_monster(m_id)
 		_target_name_label.text = str(m_data.get("name", "Monster"))
 
 	var hp := int(target.get("hp") if target.get("hp") != null else 0)
 	var max_hp := int(target.get("max_hp") if target.get("max_hp") != null else 100)
-	var target_hp_pct := clampf(float(hp) / float(max_hp), 0.0, 1.0)
+	if hp == _target_hud_last_hp and max_hp == _target_hud_last_max_hp:
+		return
+	_target_hud_last_hp = hp
+	_target_hud_last_max_hp = max_hp
 
+	var target_hp_pct := clampf(float(hp) / float(maxi(max_hp, 1)), 0.0, 1.0)
 	var current_scale_x := _target_hp_bar.scale.x
 	if absf(current_scale_x - target_hp_pct) > 0.001:
 		const TWEEN_META := "hp_tween"
@@ -2477,7 +2513,14 @@ func refresh_quest_log() -> void:
 func _build_quest_log() -> void:
 	_quest_log = QuestLogPanel.new()
 	_quest_log.collapse_changed.connect(func(_c): _layout_open_windows())
+	_quest_log.quest_entry_pressed.connect(_on_quest_log_navigate)
 	ui_root.add_child(_quest_log)
+
+
+func _on_quest_log_navigate(quest_id: String) -> void:
+	if player == null:
+		return
+	QuestNavigation.navigate_to_quest(player, quest_id, self)
 
 
 func _build_skill_window() -> void:

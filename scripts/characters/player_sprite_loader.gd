@@ -149,7 +149,7 @@ static func _filter_hurt_paths(job: String, gender: String, paths: PackedStringA
 
 static func get_sprite_scale(frames: SpriteFrames) -> Vector2:
 	const LEGACY_FRAME_HEIGHT := 900.0
-	const LEGACY_SCALE := 0.045
+	const LEGACY_SCALE := 0.025
 	var target_height := LEGACY_FRAME_HEIGHT * LEGACY_SCALE
 	for anim_name in ANIM_FOLDER_MAP.values():
 		if not frames.has_animation(anim_name):

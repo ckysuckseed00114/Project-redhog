@@ -52,7 +52,6 @@ var equipment := {
 	"acc2": null
 }
 
-var last_attack_time: float = 0.0
 var last_auto_attack: float = 0.0
 var is_attacking: bool = false
 var is_hurt: bool = false
@@ -64,6 +63,9 @@ var pending_attack_crit: bool = false
 var _presence_timer: float = 2.8
 var _death_position: Vector2 = Vector2.ZERO
 var _auto_potion := PlayerAutoPotion.new()
+var _ui: Node
+var _world: Node
+var _melee_query_shape: CircleShape2D
 
 var auto_potion_enabled: bool = true
 var auto_potion_hp_pct: float = 0.50
@@ -77,6 +79,9 @@ var auto_potion_sp_pct: float = 0.30
 var auto_save_timer: Timer
 
 const MAX_HURT_LOCKOUT := 0.35
+const PRESENCE_SYNC_MOVING := 0.3
+const PRESENCE_SYNC_IDLE := 2.0
+const MAP_CLAMP_MIN := 8.0
 
 # player.gd — สารบัญ: Setup | Visuals | Stats/Job | Combat | Inventory | Movement | Input
 
@@ -124,7 +129,25 @@ func _ready() -> void:
 	auto_save_timer.autostart = true
 	auto_save_timer.timeout.connect(_on_auto_save_timeout)
 	add_child(auto_save_timer)
+	call_deferred("_cache_runtime_refs")
 	call_deferred("emit_signal", "inventory_changed")
+
+
+func _cache_runtime_refs() -> void:
+	_world = get_tree().get_first_node_in_group("world")
+	_ui = UiAccess.get_ui(self)
+
+
+func _get_ui() -> Node:
+	if _ui == null or not is_instance_valid(_ui):
+		_ui = UiAccess.get_ui(self)
+	return _ui
+
+
+func _get_world() -> Node:
+	if _world == null or not is_instance_valid(_world):
+		_world = get_tree().get_first_node_in_group("world")
+	return _world
 
 func _on_auto_save_timeout() -> void:
 	if is_dead:
@@ -133,7 +156,7 @@ func _on_auto_save_timeout() -> void:
 		DatabaseManager.save_game_data(self)
 		print("💾 [Auto-Save] บันทึกข้อมูลอัตโนมัติสำเร็จเรียบร้อย")
 		
-		var ui := UiAccess.get_ui(self)
+		var ui := _get_ui()
 		if ui and ui.has_method("refresh_inventory_and_equipment_ui"):
 			ui.refresh_inventory_and_equipment_ui()
 
@@ -257,9 +280,9 @@ func _resolve_walk_animation() -> String:
 func _apply_facing_flip() -> void:
 	match direction:
 		"left", "down_left", "up_left":
-			sprite.flip_h = true
-		"right", "down_right", "up_right":
 			sprite.flip_h = false
+		"right", "down_right", "up_right":
+			sprite.flip_h = true
 
 
 func _play_movement_animation(moving: bool) -> void:
@@ -273,10 +296,6 @@ func _play_movement_animation(moving: bool) -> void:
 	if _has_sprite_anim(anim_name):
 		if sprite.animation != anim_name or not sprite.is_playing():
 			sprite.play(anim_name)
-
-
-func _play_idle_or_walk() -> void:
-	_play_movement_animation(is_moving or velocity.length_squared() > 0.01)
 
 # --- Job ---
 
@@ -295,7 +314,7 @@ func change_job(new_job: String) -> bool:
 	stats_changed.emit()
 	if OnlineSession.is_logged_in():
 		DatabaseManager.save_game_data(self)
-	var ui := UiAccess.get_ui(self)
+	var ui := _get_ui()
 	if ui and ui.has_method("show_notification"):
 		ui.show_notification("Job changed to %s!" % ClassDatabase.get_display_name(new_job), Color8(0x2e, 0xcc, 0x71))
 	return true
@@ -306,6 +325,8 @@ func _setup_collision() -> void:
 	shape.size = Vector2(9, 6)
 	$CollisionShape2D.shape = shape
 	$CollisionShape2D.position = Vector2(8.5, 13)
+	_melee_query_shape = CircleShape2D.new()
+	_melee_query_shape.radius = GameConstants.MELEE_HIT_REACH
 
 
 func _init_inventory() -> void:
@@ -484,7 +505,7 @@ func add_exp(amount: int) -> void:
 		sp = max_sp
 		_flash_level_up()
 		
-		var ui := UiAccess.get_ui(self)
+		var ui := _get_ui()
 		if ui and ui.has_method("show_notification"):
 			ui.show_notification("BASE LEVEL UP! (Lv. %d)" % level, Color8(0x34, 0x98, 0xdb))
 			
@@ -503,7 +524,7 @@ func _add_job_exp(amount: int) -> void:
 		max_job_exp = int(floor(float(max_job_exp) * 1.5))
 		job_points += 1 # ได้แต้มไปอัพสมุดสกิล
 		
-		var ui := UiAccess.get_ui(self)
+		var ui := _get_ui()
 		if ui and ui.has_method("show_notification"):
 			ui.show_notification("JOB LEVEL UP! (Job Lv. %d)" % job_level, Color8(0xf1, 0xc4, 0x0f))
 			
@@ -519,7 +540,7 @@ func take_damage(amount: int) -> void:
 	hp = maxi(0, hp - amount)
 	stats_changed.emit()
 	
-	var world := get_tree().get_first_node_in_group("world")
+	var world := _get_world()
 	if world and world.has_method("spawn_damage_text"):
 		world.spawn_damage_text(global_position, amount, false, Color8(0xf1, 0xc4, 0x0f))
 	
@@ -581,7 +602,7 @@ func _try_resume_interrupted_attack() -> bool:
 	if not pending_attack_target.get("is_active_monster"):
 		pending_attack_target = null
 		return false
-	var world := get_tree().get_first_node_in_group("world")
+	var world := _get_world()
 	if world == null or not world.has_method("inflict_damage_to_monster"):
 		return false
 	var target_pos: Vector2 = (pending_attack_target as Node2D).global_position
@@ -607,7 +628,7 @@ func _die() -> void:
 	set_physics_process(false)
 	apply_velocity(0, 0)
 	
-	var ui := UiAccess.get_ui(self)
+	var ui := _get_ui()
 	if ui and ui.has_method("open_death_dialog"):
 		ui.open_death_dialog(self)
 
@@ -653,7 +674,7 @@ func restore_after_save_point_revive(pos: Vector2 = global_position) -> void:
 		sprite.modulate = Color(1, 1, 1, 1)
 		_play_sprite_anim("idle")
 	stats_changed.emit()
-	var ui := UiAccess.get_ui(self)
+	var ui := _get_ui()
 	if ui:
 		if ui.has_method("close_death_dialog"):
 			ui.close_death_dialog()
@@ -677,7 +698,7 @@ func _finish_revive(pos: Vector2, restore_full: bool = false) -> void:
 	sprite.modulate = Color(1, 1, 1, 1)
 	_play_sprite_anim("idle")
 	stats_changed.emit()
-	var ui := UiAccess.get_ui(self)
+	var ui := _get_ui()
 	if ui and ui.has_method("close_death_dialog"):
 		ui.close_death_dialog()
 	if ui and ui.has_method("_update_player_stats_ui"):
@@ -939,8 +960,7 @@ func trigger_attack_animation(target_pos: Vector2 = Vector2.ZERO) -> void:
 	attack_duration_calc = clampf(attack_duration_calc, 0.15, 1.0) 
 	
 	if _has_sprite_anim("attack"):
-		var base_duration = 0.4
-		sprite.speed_scale = base_duration / attack_duration_calc
+		sprite.speed_scale = attack_duration / attack_duration_calc
 		sprite.play("attack")
 		
 		if not sprite.frame_changed.is_connected(_on_player_animation_frame_changed):
@@ -973,49 +993,54 @@ func _disconnect_attack_signals() -> void:
 	if sprite.animation_finished.is_connected(_on_player_attack_finished):
 		sprite.animation_finished.disconnect(_on_player_attack_finished)
 
+func _flash_world_hit() -> void:
+	var world := _get_world()
+	if world and world.has_method("flash_hit"):
+		world.flash_hit()
+
+
 func execute_melee_hit() -> void:
 	if pending_attack_target and is_instance_valid(pending_attack_target):
 		if pending_attack_target.has_method("take_damage"):
 			pending_attack_target.take_damage(pending_attack_damage)
-			var world := get_tree().get_first_node_in_group("world")
+			var world := _get_world()
 			if world and world.has_method("spawn_damage_text"):
-				world.spawn_damage_text(pending_attack_target.global_position, pending_attack_damage, pending_attack_crit)
-			if world and world.has_method("flash_hit"):
-				world.flash_hit()
+				world.spawn_damage_text(
+					pending_attack_target.global_position,
+					pending_attack_damage,
+					pending_attack_crit
+				)
+			_flash_world_hit()
 		pending_attack_target = null
 		has_dealt_damage = true
 		return
 
+	if _melee_query_shape == null:
+		return
+
 	var hit_radius := GameConstants.MELEE_HIT_REACH
-	var forward_offset = Vector2.ZERO
-	
+	var forward_offset := Vector2.ZERO
 	match direction:
-		"down": forward_offset = Vector2(0, hit_radius)
-		"up": forward_offset = Vector2(0, -hit_radius)
-		"left": forward_offset = Vector2(-hit_radius, 0)
-		"right": forward_offset = Vector2(hit_radius, 0)
-		
-	var check_pos = global_position + forward_offset
-	var space_state = get_world_2d().direct_space_state
-	var query = PhysicsShapeQueryParameters2D.new()
-	
-	var shape = CircleShape2D.new()
-	shape.radius = hit_radius
-	query.shape = shape
-	query.transform = Transform2D(0, check_pos)
-	query.collision_mask = 2 
-	
-	var results = space_state.intersect_shape(query)
-	for result in results:
-		var collider = result.collider
+		"down":
+			forward_offset = Vector2(0, hit_radius)
+		"up":
+			forward_offset = Vector2(0, -hit_radius)
+		"left":
+			forward_offset = Vector2(-hit_radius, 0)
+		"right":
+			forward_offset = Vector2(hit_radius, 0)
+
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = _melee_query_shape
+	query.transform = Transform2D(0, global_position + forward_offset)
+	query.collision_mask = GameConstants.MONSTER_BODY_LAYER
+
+	for result in get_world_2d().direct_space_state.intersect_shape(query):
+		var collider: Object = result.collider
 		if collider and collider.is_in_group("monsters") and collider.has_method("take_damage"):
-			var dmg = get_attack_damage()
-			collider.take_damage(dmg)
-			
-			var world := get_tree().get_first_node_in_group("world")
-			if world and world.has_method("flash_hit"):
-				world.flash_hit()
-			print("⚔️ ฟันโดนเป้าหมาย สร้างดาเมจ: ", dmg)
+			collider.take_damage(get_attack_damage())
+			_flash_world_hit()
+			return
 
 # --- Movement ---
 
@@ -1040,6 +1065,11 @@ func _resolve_move_direction(move_vec: Vector2) -> String:
 	return "down" if move_vec.y > 0.0 else "up"
 
 
+func _clamp_to_map_bounds() -> void:
+	global_position.x = clampf(global_position.x, MAP_CLAMP_MIN, GameConstants.MAP_WORLD_WIDTH - MAP_CLAMP_MIN)
+	global_position.y = clampf(global_position.y, MAP_CLAMP_MIN, GameConstants.MAP_WORLD_HEIGHT - MAP_CLAMP_MIN)
+
+
 func apply_velocity(vx: float, vy: float) -> void:
 	if is_dead or is_attacking or is_hurt or is_talking:
 		velocity = Vector2.ZERO
@@ -1058,10 +1088,8 @@ func apply_velocity(vx: float, vy: float) -> void:
 		
 		# 🌟 2. เดินจริง และล็อกขอบจอ
 		move_and_slide()
-		global_position.x = clampf(global_position.x, 8, GameConstants.MAP_WORLD_WIDTH - 8)
-		global_position.y = clampf(global_position.y, 8, GameConstants.MAP_WORLD_HEIGHT - 8)
+		_clamp_to_map_bounds()
 		
-		# 🌟 3. เช็กว่าตัวละครขยับจริงไหม? (ถ้าไม่ขยับแปลว่าชนขอบ/กำแพง)
 		if global_position.distance_squared_to(pos_before) < 0.01:
 			if is_moving:
 				is_moving = false
@@ -1074,14 +1102,16 @@ func apply_velocity(vx: float, vy: float) -> void:
 	else:
 		velocity = Vector2.ZERO
 		move_and_slide()
-		global_position.x = clampf(global_position.x, 8, GameConstants.MAP_WORLD_WIDTH - 8)
-		global_position.y = clampf(global_position.y, 8, GameConstants.MAP_WORLD_HEIGHT - 8)
+		_clamp_to_map_bounds()
 		
 		if is_moving:
 			is_moving = false
-			sprite.stop()
-			_play_movement_animation(false)
-			sprite.frame = 0
+			# 🌟 สั่งให้เล่นท่า idle และจำทิศทางล่าสุดไว้
+			_apply_facing_flip()
+			if _has_sprite_anim("idle"):
+				sprite.play("idle")
+			else:
+				sprite.stop()
 
 func _flash_level_up() -> void:
 	var flash := camera.get_node_or_null("FlashOverlay")
@@ -1097,18 +1127,21 @@ func _sync_presence_now() -> void:
 		OnlinePresenceManager.sync_local_player(self)
 
 func _process(delta: float) -> void:
+	if is_dead:
+		return
 	_auto_potion.tick(self, delta)
-	_presence_timer += delta
-	
-	var sync_interval := 0.3 if is_moving else 2.0
-	
-	if _presence_timer >= sync_interval and OnlineSession.is_online():
-		_presence_timer = 0.0
-		_sync_presence_now()
-			
-	if camera:
-		camera.offset = Vector2.ZERO
-		camera.global_position = global_position.round()
+	if OnlineSession.is_online():
+		_presence_timer += delta
+		var sync_interval := PRESENCE_SYNC_MOVING if is_moving else PRESENCE_SYNC_IDLE
+		if _presence_timer >= sync_interval:
+			_presence_timer = 0.0
+			_sync_presence_now()
+	if camera == null:
+		return
+	camera.offset = Vector2.ZERO
+	var rounded_pos := global_position.round()
+	if camera.global_position != rounded_pos:
+		camera.global_position = rounded_pos
 
 
 func get_skill_level(skill_id: String) -> int:
@@ -1139,7 +1172,7 @@ func cast_first_aid() -> void:
 		return
 		
 	if sp < skill_data["sp_cost"]:
-		var ui := UiAccess.get_ui(self)
+		var ui := _get_ui()
 		if ui and ui.has_method("add_log"):
 			ui.add_log("SP ไม่พอสำหรับ First Aid!", Color8(0xe7, 0x4c, 0x3c))
 		return
@@ -1148,7 +1181,7 @@ func cast_first_aid() -> void:
 	hp = mini(max_hp, hp + skill_data["hp_restore"])
 	stats_changed.emit()
 	
-	var world := get_tree().get_first_node_in_group("world")
+	var world := _get_world()
 	if world and world.has_method("spawn_damage_text"):
 		world.spawn_damage_text(global_position, skill_data["hp_restore"], false, Color8(0x2e, 0xcc, 0x71))
 
@@ -1234,7 +1267,7 @@ func accept_quest(quest_id: String) -> bool:
 		"completed": false
 	}
 	
-	var ui := UiAccess.get_ui(self)
+	var ui := _get_ui()
 	if ui and ui.has_method("show_notification"):
 		ui.show_notification("รับเควสใหม่: %s" % def.get("title", ""), Color8(0x34, 0x98, 0xdb))
 	if ui and ui.has_method("add_log"):
@@ -1257,7 +1290,7 @@ func update_quest_progress(objective_type: String, target_id: String, amount: in
 			current = mini(target, current + amount)
 			q_data["progress"] = current
 			
-			var ui := UiAccess.get_ui(self)
+			var ui := _get_ui()
 			if ui and ui.has_method("add_log"):
 				ui.add_log("ความคืบหน้าเควส [%s]: %d/%d" % [def.get("title", ""), current, target], Color8(0xf1, 0xc4, 0x0f))
 				
@@ -1282,14 +1315,13 @@ func turn_in_quest(quest_id: String) -> bool:
 		
 	# แจกรางวัล
 	add_exp(int(def.get("reward_exp", 0)))
-	if has_method("_add_job_exp"):
-		_add_job_exp(int(def.get("reward_job_exp", 0)))
+	_add_job_exp(int(def.get("reward_job_exp", 0)))
 	add_zeny(int(def.get("reward_zeny", 0)))
 	
 	active_quests.erase(quest_id)
 	finished_quests.append(quest_id)
 	
-	var ui := UiAccess.get_ui(self)
+	var ui := _get_ui()
 	if ui and ui.has_method("show_notification"):
 		ui.show_notification("ส่งเควสสำเร็จ รับรางวัลเรียบร้อย!", Color8(0x2e, 0xcc, 0x71))
 	if ui and ui.has_method("add_log"):
@@ -1301,7 +1333,7 @@ func turn_in_quest(quest_id: String) -> bool:
 
 func set_auto_mode(enabled: bool) -> void:
 	is_auto_mode = enabled
-	var ui := UiAccess.get_ui(self)
+	var ui := _get_ui()
 	if ui and ui.has_method("show_notification"):
 		if is_auto_mode:
 			ui.show_notification("Auto-Battle: ON", Color8(0x2e, 0xcc, 0x71))
@@ -1315,7 +1347,7 @@ func set_auto_flee_boss(enabled: bool) -> void:
 func set_auto_potion_enabled(enabled: bool) -> void:
 	auto_potion_enabled = enabled
 	_auto_potion.enabled = enabled
-	var ui := UiAccess.get_ui(self)
+	var ui := _get_ui()
 	if ui and ui.has_method("show_notification"):
 		if enabled:
 			ui.show_notification("Auto Potion: ON", Color8(0x2e, 0xcc, 0x71))

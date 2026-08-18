@@ -24,6 +24,31 @@ var has_save_point: bool = false
 var pending_revive_at_save: bool = false
 var pending_created_character: Dictionary = {}
 
+var active_auto_quest_id: String = ""
+var auto_quest_state: String = ""  # "", "traveling", "hunting", "returning"
+
+var is_auto_returning_quest: bool = false
+var returning_quest_id: String = ""
+
+
+func clear_auto_quest_state() -> void:
+	is_auto_returning_quest = false
+	returning_quest_id = ""
+
+
+func set_auto_quest(quest_id: String, state: String) -> void:
+	active_auto_quest_id = quest_id
+	auto_quest_state = state
+
+
+func clear_auto_quest() -> void:
+	active_auto_quest_id = ""
+	auto_quest_state = ""
+
+
+func has_active_auto_quest() -> bool:
+	return active_auto_quest_id != ""
+
 
 func remember_created_character(data: Dictionary) -> void:
 	pending_created_character = data.duplicate(true)

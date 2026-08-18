@@ -45,19 +45,34 @@ func _build_indicator() -> void:
 	add_child(hint)
 
 
-func _on_body_entered(body: Node2D) -> void:
-	if _warping or target_scene == "":
+func _is_auto_quest_travel() -> bool:
+	return GlobalData.is_auto_returning_quest or GlobalData.has_active_auto_quest()
+
+
+func try_auto_warp(body: Node2D) -> void:
+	if not _is_auto_quest_travel():
 		return
-		
-	if GlobalData.is_warp_grace_active():
-		return
-		
 	if not (body is Player or body.is_in_group("player")):
 		return
-	if body.get("is_auto_mode"):
+	_execute_warp(body)
+
+
+func _on_body_entered(body: Node2D) -> void:
+	if not (body is Player or body.is_in_group("player")):
+		return
+	var auto_travel := _is_auto_quest_travel()
+	if GlobalData.is_warp_grace_active() and not auto_travel:
+		return
+	if body.get("is_auto_mode") and not auto_travel:
+		return
+	_execute_warp(body)
+
+
+func _execute_warp(body: Node2D) -> void:
+	if _warping or target_scene == "":
 		return
 
 	_warping = true
-	var player: Player = body as Player if body is Player else null
-	await WarpHelper.execute(get_tree(), target_scene, spawn_position, destination_name, player)
+	var warp_player: Player = body as Player if body is Player else null
+	await WarpHelper.execute(get_tree(), target_scene, spawn_position, destination_name, warp_player)
 	_warping = false

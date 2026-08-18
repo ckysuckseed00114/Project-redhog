@@ -33,6 +33,7 @@ RealtimeChannelService="*res://scripts/online/realtime_channel_service.gd"
 OnlinePresenceManager="*res://scripts/online/presence_manager.gd"
 BossManager="*res://scripts/managers/boss_manager.gd"
 WorldSyncManager="*res://scripts/online/world_sync_manager.gd"
+CloudDB="*uid://cvmxiia8ct3o8"
 
 [display]
 

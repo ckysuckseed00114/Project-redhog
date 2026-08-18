@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cvdaf6yd0uaca"
-path="res://.godot/imported/004.png-ff2a6de11ed2a8f6c80de98b81e928af.ctex"
+uid="uid://cvh07idegklhk"
+path="res://.godot/imported/002.png-835b453f98abeb58e3e748859fc23003.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://animation/player/novice/male/attack/004.png"
-dest_files=["res://.godot/imported/004.png-ff2a6de11ed2a8f6c80de98b81e928af.ctex"]
+source_file="res://animation/player/novice/male/walk_side/002.png"
+dest_files=["res://.godot/imported/002.png-835b453f98abeb58e3e748859fc23003.ctex"]
 
 [params]
 

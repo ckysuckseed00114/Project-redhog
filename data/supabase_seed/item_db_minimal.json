@@ -1,0 +1,32 @@
+[
+	{
+		"item_id": "armor01",
+		"name": "Armor",
+		"type": "armor",
+		"price": 120
+	},
+	{
+		"item_id": "blue_potion",
+		"name": "Blue Potion",
+		"type": "consumable",
+		"price": 40
+	},
+	{
+		"item_id": "red_potion",
+		"name": "Red Potion",
+		"type": "consumable",
+		"price": 50
+	},
+	{
+		"item_id": "sword01",
+		"name": "Sword",
+		"type": "weapon",
+		"price": 150
+	},
+	{
+		"item_id": "white_potion",
+		"name": "White Potion",
+		"type": "consumable",
+		"price": 1200
+	}
+]

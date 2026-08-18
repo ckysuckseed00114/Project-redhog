@@ -10,6 +10,8 @@ const QUESTS := {
 		"objective_type": "kill",
 		"target_id": "poring",
 		"target_count": 3,
+		"target_map": "res://scenes/maps/world.tscn",
+		"nav_hint_pos": Vector2(560, 160),
 		"reward_exp": 150,
 		"reward_job_exp": 100,
 		"reward_zeny": 100,
@@ -20,6 +22,8 @@ const QUESTS := {
 		"objective_type": "gather",
 		"target_id": "herb",
 		"target_count": 3,
+		"target_map": "res://scenes/maps/west_field.tscn",
+		"nav_hint_pos": Vector2(640, 360),
 		"reward_exp": 80,
 		"reward_job_exp": 50,
 		"reward_zeny": 50,
@@ -42,6 +46,15 @@ static func get_target_count(quest_id: String) -> int:
 	return int(get_quest(quest_id).get("target_count", 1))
 
 
+static func get_target_map(quest_id: String) -> String:
+	return str(get_quest(quest_id).get("target_map", ""))
+
+
+static func get_nav_hint_pos(quest_id: String) -> Vector2:
+	var hint: Variant = get_quest(quest_id).get("nav_hint_pos", Vector2.ZERO)
+	return hint if hint is Vector2 else Vector2.ZERO
+
+
 static func get_objective_summary(quest_id: String) -> String:
 	var def := get_quest(quest_id)
 	if def.is_empty():
@@ -55,7 +68,7 @@ static func get_objective_summary(quest_id: String) -> String:
 		"gather":
 			return "เก็บ %s %d ชิ้น" % [target, count]
 		_:
-			return def.get("description", "")
+			return str(def.get("description", ""))
 
 
 static func get_reward_summary(quest_id: String) -> String:

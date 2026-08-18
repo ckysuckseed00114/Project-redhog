@@ -9,6 +9,8 @@ var _big_poring_scene: PackedScene
 var _generic_monster_scene: PackedScene
 var _monsters: Array[CharacterBody2D] = []
 var _mob_by_sync_id: Dictionary = {}
+var _quest_nav_monster_id: String = ""
+var _quest_nav_quest_id: String = ""
 
 # world.gd — สารบัญ: Lifecycle | Targeting | Spawn | Combat | Drops | Movement
 
@@ -77,18 +79,22 @@ func _set_selected_target(new_target: CharacterBody2D) -> void:
 # --- Targeting ---
 
 func select_monster(monster: CharacterBody2D) -> void:
-	if is_modal_open() or not player:
+	if not player:
 		return
 	if not is_instance_valid(monster) or not monster.get("is_active_monster"):
 		return
 	_set_selected_target(monster)
 	move_target = null
-	var m_id = monster.get("monster_id") if monster.get("monster_id") != null else "poring"
+	
+	# 🌟 เปลี่ยนมาดึงค่าผ่าน property ตรงๆ แทนการใช้ .get() เพื่อตัดปัญหา
+	var m_id := "poring"
+	if "monster_id" in monster and monster.monster_id != null:
+		m_id = str(monster.monster_id)
+		
 	var m_data = MonsterDB.get_monster(m_id)
 	var ui := UiAccess.get_ui(self)
 	if ui and ui.has_method("add_log"):
 		ui.add_log("Target: %s" % m_data.get("name", "Monster"), Color8(0xff, 0x66, 0x22))
-
 
 func try_attack_selected() -> void:
 	if not is_instance_valid(selected_target) or not selected_target.get("is_active_monster"):
@@ -113,18 +119,174 @@ func _on_map_click(world_pos: Vector2) -> bool:
 func _allow_click_move_to(world_pos: Vector2) -> bool:
 	if _find_monster_at(world_pos):
 		return false
-	if selected_target != null and is_instance_valid(selected_target):
-		return false
 	return true
 
 
+func _apply_click_move_to(world_pos: Vector2) -> bool:
+	if not _allow_click_move_to(world_pos):
+		return false
+	world_pos = MapClickInput.clamp_map_pos(world_pos)
+	GlobalData.clear_auto_quest_state()
+	GlobalData.clear_auto_quest()
+	cancel_quest_navigation()
+	_set_selected_target(null)
+	_release_player_combat_for_move()
+	pending_npc_talk = null
+	move_target = world_pos
+	return true
+
+
+func _set_move_target_from_click(world_pos: Vector2) -> bool:
+	return _apply_click_move_to(world_pos)
+
+
 func _on_player_died() -> void:
+	cancel_quest_navigation()
 	_set_selected_target(null)
 	move_target = null
 
 
 func get_monsters() -> Array[CharacterBody2D]:
 	return _monsters
+
+
+func start_quest_hunt(quest_id: String, monster_id: String) -> Dictionary:
+	if player == null or monster_id == "" or quest_id == "":
+		return {"ok": false, "message": "ไม่พบตัวละครหรือเควส"}
+	if not player.active_quests.has(quest_id):
+		return {"ok": false, "message": "ไม่พบเควสที่กำลังทำ"}
+	var q_data: Dictionary = player.active_quests[quest_id]
+	if q_data.get("completed", false):
+		return {"ok": false, "message": "เควสนี้ทำครบแล้ว — ไปส่งที่ Quest Board"}
+
+	cancel_quest_navigation()
+	_quest_nav_quest_id = quest_id
+	_quest_nav_monster_id = monster_id
+	mark_quest_navigation_active()
+
+	var acquired := _acquire_quest_hunt_target()
+	if not acquired:
+		cancel_quest_navigation()
+		return {"ok": false, "message": "ไม่พบ %s บนแผนที่นี้" % monster_id}
+
+	var m_data := MonsterDB.get_monster(monster_id)
+	var m_name := str(m_data.get("name", monster_id))
+	var def := QuestDatabase.get_quest(quest_id)
+	var title := str(def.get("title", quest_id))
+	return {
+		"ok": true,
+		"message": "ล่า %s จนจบ [%s]" % [m_name, title],
+	}
+
+
+func cancel_quest_navigation() -> void:
+	var was_hunting := is_quest_navigation_active()
+	super.cancel_quest_navigation()
+	_quest_nav_monster_id = ""
+	_quest_nav_quest_id = ""
+	if was_hunting:
+		_release_player_combat_for_move()
+
+
+func _release_player_combat_for_move() -> void:
+	if not player:
+		return
+	if player.has_method("_cancel_attack"):
+		player._cancel_attack(true)
+	else:
+		player.pending_attack_target = null
+		player.is_attacking = false
+	player.is_hurt = false
+	# ให้ฟังก์ชัน _handle_movement จัดการความเร็วเดินใหม่เอง
+
+func _finish_quest_hunt() -> void:
+	var quest_id := _quest_nav_quest_id
+	var def := QuestDatabase.get_quest(quest_id)
+	var title := str(def.get("title", quest_id))
+	_quest_nav_monster_id = ""
+	_quest_nav_quest_id = ""
+	super.cancel_quest_navigation()
+	_set_selected_target(null)
+	_release_player_combat_for_move()
+	GlobalData.is_auto_returning_quest = true
+	GlobalData.returning_quest_id = quest_id
+	var ui := UiAccess.get_ui(self)
+	if ui and ui.has_method("show_notification"):
+		ui.show_notification("เควส [%s] ครบแล้ว! กำลังเดินกลับไปส่ง..." % title, Color8(0x2e, 0xcc, 0x71))
+	if ui and ui.has_method("add_log"):
+		ui.add_log("🎯 เควส [%s] สำเร็จ — เริ่มเดินกลับส่งเควส" % title, Color8(0x2e, 0xcc, 0x71))
+	QuestNavigation.navigate_to_npc(player, "quest_board", self)
+
+
+func _process_quest_hunt() -> void:
+	if not is_quest_navigation_active() or _quest_nav_quest_id == "":
+		return
+	if player == null or player.is_dead or player.is_sitting or player.is_talking:
+		cancel_quest_navigation()
+		return
+	if not player.active_quests.has(_quest_nav_quest_id):
+		cancel_quest_navigation()
+		return
+	var q_data: Dictionary = player.active_quests[_quest_nav_quest_id]
+	if q_data.get("completed", false):
+		_finish_quest_hunt()
+		return
+
+	if is_instance_valid(selected_target) and selected_target.get("is_active_monster"):
+		var tid := str(selected_target.monster_id) if "monster_id" in selected_target and selected_target.monster_id != null else ""
+		if tid == _quest_nav_monster_id:
+			return
+
+	_acquire_quest_hunt_target()
+
+
+func _acquire_quest_hunt_target() -> bool:
+	if player == null or _quest_nav_monster_id == "":
+		return false
+
+	var live := _find_nearest_monster_by_type(_quest_nav_monster_id)
+	if live:
+		select_monster(live)
+		move_target = null
+		return true
+
+	var slot := WorldSyncManager.get_nearest_spawn_slot_for_type(_quest_nav_monster_id, player.global_position)
+	if slot.is_empty():
+		return false
+
+	move_target = slot.get("pos", Vector2.ZERO)
+	_set_selected_target(null)
+	return true
+
+
+func _on_hunt_destination_reached() -> void:
+	if not is_quest_navigation_active() or _quest_nav_monster_id == "":
+		return
+	if not _acquire_quest_hunt_target():
+		return
+	if is_instance_valid(selected_target) and selected_target.get("is_active_monster"):
+		try_attack_selected()
+
+
+func _find_nearest_monster_by_type(monster_id: String) -> CharacterBody2D:
+	if player == null or monster_id == "":
+		return null
+	var best: CharacterBody2D = null
+	var best_dist_sq := INF
+	var p_pos := player.global_position
+	for m in _monsters:
+		if not is_instance_valid(m) or not m.get("is_active_monster"):
+			continue
+			
+		var m_id := str(m.monster_id) if "monster_id" in m and m.monster_id != null else ""
+		if m_id != monster_id:
+			continue
+			
+		var dist_sq := p_pos.distance_squared_to(_get_monster_hit_center(m))
+		if dist_sq < best_dist_sq:
+			best = m
+			best_dist_sq = dist_sq
+	return best
 
 
 func _get_random_spawn_pos() -> Vector2:
@@ -215,23 +377,20 @@ func _on_poring_died(monster: CharacterBody2D) -> void:
 		_set_selected_target(null)
 
 	var sync_id := str(monster.get("sync_id")) if monster.get("sync_id") else ""
-	var m_id = monster.get("monster_id") if monster.get("monster_id") != null else "poring"
+	var m_id := "poring"
+	if "monster_id" in monster and monster.monster_id != null:
+		m_id = str(monster.monster_id)
 	var m_data = MonsterDB.get_monster(m_id)
 	player.add_exp(m_data.get("exp", 25))
-
 	flash_hit()
-
 	if m_data.has("drops"):
 		for drop_info in m_data["drops"]:
 			if randf() <= drop_info["chance"]:
 				_grant_loot(drop_info["id"])
-
 	if sync_id == WorldSyncManager.BOSS_SYNC_ID:
 		return
-
-	if m_id == "poring" and player and player.has_method("update_quest_progress"):
-		player.update_quest_progress("kill", "poring", 1)
-
+	if player and player.has_method("update_quest_progress"):
+		player.update_quest_progress("kill", m_id, 1)
 	var timer := get_tree().create_timer(WorldSyncManager.RESPAWN_DELAY)
 	var respawn_pos := WorldSyncManager.get_slot_respawn_pos(sync_id) if sync_id != "" else _get_random_spawn_pos()
 	if sync_id != "" and OnlineSession.is_online():
@@ -241,7 +400,6 @@ func _on_poring_died(monster: CharacterBody2D) -> void:
 		if is_instance_valid(monster):
 			monster.respawn(respawn_pos)
 	)
-
 
 func _grant_loot(item_id: String) -> void:
 	if not player:
@@ -384,11 +542,14 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("attack"):
 		do_attack()
 
-	if player.get("is_auto_mode"):
+	if player.get("is_auto_mode") and not is_quest_navigation_active():
 		_process_auto_ai()
+	elif is_quest_navigation_active() and _quest_nav_quest_id != "":
+		_process_quest_hunt()
 
 	_update_click_move_target()
 	_handle_movement(delta)
+	_process_pending_npc_talk()
 
 	if monsters_root and monsters_root.has_method("update_monsters_ai"):
 		monsters_root.update_monsters_ai(delta)
@@ -396,6 +557,34 @@ func _physics_process(delta: float) -> void:
 	var valid_target = selected_target if is_instance_valid(selected_target) else null
 	if effects and effects.has_method("update_effects"):
 		effects.update_effects(valid_target, move_target)
+
+	_process_auto_return_turn_in()
+	_try_auto_portal_warp()
+
+
+func _walk_to_move_target() -> void:
+	if move_target == null or not player:
+		return
+	var p_pos := player.global_position
+	var target: Vector2 = move_target
+	if p_pos.distance_squared_to(target) > 16.0:
+		var dir := (target - p_pos).normalized()
+		var pos_before := player.global_position
+		player.apply_velocity(dir.x, dir.y)
+		if player.global_position.distance_squared_to(pos_before) < 0.01:
+			move_target = null
+			if is_quest_navigation_active() and _quest_nav_monster_id != "":
+				_on_hunt_destination_reached()
+			elif not _should_keep_auto_quest_nav():
+				cancel_quest_navigation()
+			player.apply_velocity(0, 0)
+	else:
+		move_target = null
+		if is_quest_navigation_active() and _quest_nav_monster_id != "":
+			_on_hunt_destination_reached()
+		elif not _should_keep_auto_quest_nav() and is_quest_navigation_active():
+			cancel_quest_navigation()
+		player.apply_velocity(0, 0)
 
 
 func _handle_movement(_delta: float) -> void:
@@ -415,8 +604,13 @@ func _handle_movement(_delta: float) -> void:
 		vy = 0.0
 
 	if vx != 0.0 or vy != 0.0:
+		_is_dragging_map = false
+		GlobalData.clear_auto_quest_state()
+		GlobalData.clear_auto_quest()
+		cancel_quest_navigation()
 		move_target = null
 		_set_selected_target(null)
+		_release_player_combat_for_move()
 		player.apply_velocity(vx, vy)
 		return
 
@@ -433,11 +627,15 @@ func _handle_movement(_delta: float) -> void:
 				boss_to_flee_from = boss as CharacterBody2D
 
 		if boss_to_flee_from:
-			_set_selected_target(null) 
+			_set_selected_target(null)
 			move_target = null
 			var dir := (p_pos - boss_to_flee_from.global_position).normalized()
 			player.apply_velocity(dir.x, dir.y)
 			return
+
+	if move_target != null:
+		_walk_to_move_target()
+		return
 
 	if is_instance_valid(selected_target) and selected_target.get("is_active_monster"):
 		var target_pos: Vector2 = _get_monster_hit_center(selected_target)
@@ -459,22 +657,6 @@ func _handle_movement(_delta: float) -> void:
 		return
 	else:
 		_set_selected_target(null)
-
-	if move_target != null:
-		var target: Vector2 = move_target
-		if p_pos.distance_squared_to(target) > 16.0:
-			var dir := (target - p_pos).normalized()
-			
-			var pos_before := player.global_position
-			player.apply_velocity(dir.x, dir.y)
-			
-			if player.global_position.distance_squared_to(pos_before) < 0.01:
-				move_target = null
-				player.apply_velocity(0, 0)
-		else:
-			move_target = null
-			player.apply_velocity(0, 0)
-		return
 
 	player.apply_velocity(0, 0)
 
@@ -538,6 +720,8 @@ func _is_path_clear(start_pos: Vector2, end_pos: Vector2, target_node: Node2D) -
 
 func _process_auto_ai() -> void:
 	if player.is_dead or player.is_sitting or player.is_talking:
+		return
+	if move_target != null:
 		return
 
 	if is_instance_valid(selected_target) and selected_target.get("is_active_monster"):

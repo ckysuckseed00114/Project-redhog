@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cnws3l64hsah6"
-path="res://.godot/imported/007.png-4546718140c5c0a7660273a5c378748c.ctex"
+uid="uid://kxoc8tscrgv0"
+path="res://.godot/imported/11.png-9f9d4d87a91a5d9e88088a049b0022ec.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://animation/player/novice/male/attack/007.png"
-dest_files=["res://.godot/imported/007.png-4546718140c5c0a7660273a5c378748c.ctex"]
+source_file="res://scenes/maps/npc/11.png"
+dest_files=["res://.godot/imported/11.png-9f9d4d87a91a5d9e88088a049b0022ec.ctex"]
 
 [params]
 
