@@ -17,12 +17,21 @@ const WORLD_BOSSES: Array[Dictionary] = [
 		"map_label": "Training Field",
 		"boss_id": "big_poring",
 		"epoch_offset": 0.0,
+		"spawn_pos": Vector2(640, 280),
+	},
+	{
+		"scene": ProjectPaths.WEST_FIELD,
+		"map_label": "West Field",
+		"boss_id": "big_poring",
+		"epoch_offset": 45.0,
+		"spawn_pos": Vector2(160, 360),
 	},
 	{
 		"scene": ProjectPaths.CAPITAL,
 		"map_label": "Capital City",
 		"boss_id": "big_poring",
 		"epoch_offset": 90.0,
+		"spawn_pos": Vector2(640, 280),
 	},
 ]
 
@@ -115,6 +124,22 @@ func get_boss_def_for_scene(scene: String) -> Dictionary:
 		for def in WORLD_BOSSES:
 			_boss_def_by_scene[str(def.get("scene", ""))] = def
 	return _boss_def_by_scene.get(scene, {})
+
+
+func get_boss_spawn_pos(scene: String = "") -> Vector2:
+	if scene == "":
+		scene = get_scene_path()
+	if _world and is_instance_valid(_world) and _world.has_method("get_boss_spawn_pos"):
+		var world_pos: Variant = _world.call("get_boss_spawn_pos")
+		if world_pos is Vector2:
+			return world_pos
+	var def := get_boss_def_for_scene(scene)
+	if def.get("spawn_pos") is Vector2:
+		return def["spawn_pos"]
+	return Vector2(
+		GameConstants.MAP_WORLD_WIDTH * 0.5,
+		GameConstants.MAP_WORLD_HEIGHT * 0.35
+	)
 
 
 func get_epoch_offset(scene: String) -> float:

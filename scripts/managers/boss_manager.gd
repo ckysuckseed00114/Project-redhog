@@ -46,7 +46,8 @@ func request_synced_spawn() -> void:
 		return
 	if is_instance_valid(active_boss) and active_boss.get("is_active_monster"):
 		return
-	var boss := _world.spawn_boss(BOSS_ID)
+	var spawn_pos := WorldSyncManager.get_boss_spawn_pos()
+	var boss := _world.spawn_boss(BOSS_ID, spawn_pos)
 	if boss:
 		_bind_boss(boss)
 		WorldSyncManager.on_local_boss_spawned(boss.global_position)

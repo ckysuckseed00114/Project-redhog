@@ -27,6 +27,13 @@ func get_scenery_exclusions() -> Array[Vector2]:
 	]
 
 
+func get_boss_spawn_pos() -> Vector2:
+	return Vector2(
+		GameConstants.MAP_WORLD_WIDTH * 0.5,
+		GameConstants.MAP_WORLD_HEIGHT * 0.35
+	)
+
+
 func _ready() -> void:
 	super._ready()
 
@@ -358,10 +365,7 @@ func spawn_boss(boss_id: String, pos: Vector2 = Vector2.ZERO) -> CharacterBody2D
 		return null
 	boss.monster_id = boss_id
 	boss.sync_id = WorldSyncManager.BOSS_SYNC_ID
-	var spawn_pos := pos if pos != Vector2.ZERO else Vector2(
-		GameConstants.MAP_WORLD_WIDTH * 0.5,
-		GameConstants.MAP_WORLD_HEIGHT * 0.35
-	)
+	var spawn_pos := pos if pos != Vector2.ZERO else get_boss_spawn_pos()
 	boss.global_position = spawn_pos
 	boss.died.connect(_on_poring_died)
 	monsters_root.add_child(boss)

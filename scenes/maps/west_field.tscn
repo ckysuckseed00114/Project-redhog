@@ -19,5 +19,8 @@ spawn_position = Vector2(80, 400)
 [node name="Monsters" type="Node2D" parent="."]
 script = ExtResource("3_mobs")
 
+[node name="BossSpawn" type="Marker2D" parent="."]
+position = Vector2(160, 360)
+
 [node name="WorldEffects" type="Node2D" parent="."]
 script = ExtResource("4_fx")
