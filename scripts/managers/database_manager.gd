@@ -220,23 +220,114 @@ func _persist_payload(payload: Dictionary, done: Callable) -> void:
 			finish.call(false)
 		, CONNECT_ONE_SHOT)
 
-	var query := _character_query(char_id)
-	SupabaseClient.update_data("players", query, player_row, func(success: bool, _res: Variant) -> void:
+	_upsert_player_row(player_row, func(success: bool) -> void:
 		if not is_instance_valid(self):
 			return
 		if success:
 			_sync_related_tables(payload, finish)
+		else:
+			finish.call(false)
+	)
+
+
+func _player_save_query(player_row: Dictionary) -> String:
+	var char_id := str(player_row.get("character_id", "")).uri_encode()
+	var user_id := str(player_row.get("user_id", "")).uri_encode()
+	return "character_id=eq.%s&user_id=eq.%s" % [char_id, user_id]
+
+
+func _upsert_player_row(player_row: Dictionary, done: Callable) -> void:
+	var char_id := str(player_row.get("character_id", ""))
+	var user_id := str(player_row.get("user_id", ""))
+	if char_id == "" or user_id == "":
+		push_warning("Cloud save players: missing character_id or user_id")
+		if done.is_valid():
+			done.call(false)
+		return
+
+	var query := _player_save_query(player_row)
+	_patch_player_row(query, player_row, func(patch_ok: bool, rows_updated: int) -> void:
+		if patch_ok and rows_updated > 0:
+			if done.is_valid():
+				done.call(true)
 			return
-		SupabaseClient.insert_data("players", player_row, func(ins_success: bool, _ins_res: Variant) -> void:
-			if not is_instance_valid(self):
+		_post_player_row(player_row, func(post_ok: bool, response_code: int) -> void:
+			if post_ok:
+				if done.is_valid():
+					done.call(true)
 				return
-			if ins_success:
-				print("✅ สร้างข้อมูลตัวละครใหม่สำเร็จ")
-				_sync_related_tables(payload, finish)
-			else:
-				finish.call(false)
+			if response_code == 409:
+				_patch_player_row(query, player_row, func(retry_ok: bool, retry_rows: int) -> void:
+					if done.is_valid():
+						done.call(retry_ok and retry_rows > 0)
+				)
+				return
+			if done.is_valid():
+				done.call(false)
 		)
 	)
+
+
+func _patch_player_row(query: String, player_row: Dictionary, done: Callable) -> void:
+	_patch_table_row("players", query, player_row, done)
+
+
+func _post_player_row(player_row: Dictionary, done: Callable) -> void:
+	_post_table_row("players", player_row, done)
+
+
+func _patch_table_row(table: String, query: String, row: Dictionary, done: Callable) -> void:
+	SupabaseConfig.ensure_loaded()
+	var url := SupabaseConfig.url + table + "?" + query
+	var auth_token := SupabaseClient._auth_bearer()
+	var headers := PackedStringArray([
+		"apikey: " + SupabaseConfig.anon_key,
+		"Authorization: Bearer " + auth_token,
+		"Content-Type: application/json",
+		"Prefer: return=representation",
+	])
+	SupabaseClient._dispatch_http(
+		url,
+		headers,
+		HTTPClient.METHOD_PATCH,
+		JSON.stringify(row),
+		func(result: int, response_code: int, _headers_res: PackedStringArray, body: PackedByteArray) -> void:
+			var http_ok := result == HTTPRequest.RESULT_SUCCESS and response_code >= 200 and response_code < 300
+			var rows := SupabaseClient.normalize_rows(SupabaseClient._parse_json_body(body))
+			if not http_ok:
+				_log_http_failure("%s PATCH" % table, response_code, body)
+			if done.is_valid():
+				done.call(http_ok, rows.size())
+	)
+
+
+func _post_table_row(table: String, row: Dictionary, done: Callable) -> void:
+	SupabaseConfig.ensure_loaded()
+	var url := SupabaseConfig.url + table
+	var auth_token := SupabaseClient._auth_bearer()
+	var headers := PackedStringArray([
+		"apikey: " + SupabaseConfig.anon_key,
+		"Authorization: Bearer " + auth_token,
+		"Content-Type: application/json",
+		"Prefer: return=minimal",
+	])
+	SupabaseClient._dispatch_http(
+		url,
+		headers,
+		HTTPClient.METHOD_POST,
+		JSON.stringify(row),
+		func(result: int, response_code: int, _headers_res: PackedStringArray, body: PackedByteArray) -> void:
+			var http_ok := result == HTTPRequest.RESULT_SUCCESS and response_code >= 200 and response_code < 300
+			if not http_ok:
+				_log_http_failure("%s POST" % table, response_code, body)
+			if done.is_valid():
+				done.call(http_ok, response_code)
+	)
+
+
+func _log_http_failure(label: String, response_code: int, body: PackedByteArray) -> void:
+	var body_text := body.get_string_from_utf8() if not body.is_empty() else ""
+	push_warning("Cloud save %s failed: HTTP %d — %s" % [label, response_code, body_text.left(240)])
 
 
 func _safe_done(done: Callable, success: bool) -> void:
@@ -250,8 +341,7 @@ func _sync_related_tables(payload: Dictionary, done: Callable) -> void:
 		_safe_done(done, false)
 		return
 
-	# 🌟 ตัดการใช้ DELETE ทิ้ง เพื่อป้องกันปัญหา Race Condition และ Error 409 Duplicate Key
-	# ให้ใช้ระบบ Upsert (merge-duplicates) ยิงทับอัปเดตข้อมูลเดิมได้ทันทีอย่างปลอดภัย
+	# PATCH → POST → retry PATCH (ไม่ใช้ on_conflict — ไม่ต้องพึ่ง unique constraint)
 	_upsert_equipment_records(payload, func(eq_ok: bool) -> void:
 		if not is_instance_valid(self):
 			return
@@ -285,6 +375,79 @@ func _upsert_inventory_records(payload: Dictionary, done: Callable) -> void:
 	_wait_for_upserts(records, "player_inventory", done)
 
 
+func _sanitize_related_row(row: Dictionary) -> Dictionary:
+	var clean := row.duplicate(true)
+	for key in ["id", "created_at", "updated_at"]:
+		clean.erase(key)
+	return clean
+
+
+func _related_row_query(table: String, row: Dictionary) -> String:
+	var char_id := str(row.get("character_id", "")).uri_encode()
+	var user_id := str(row.get("user_id", "")).uri_encode()
+	if table == "player_equipment":
+		var slot_key := str(row.get("slot_key", "")).uri_encode()
+		return "character_id=eq.%s&user_id=eq.%s&slot_key=eq.%s" % [char_id, user_id, slot_key]
+	var slot_index := int(row.get("slot_index", 0))
+	return "character_id=eq.%s&user_id=eq.%s&slot_index=eq.%d" % [char_id, user_id, slot_index]
+
+
+func _merge_table_row(table: String, row: Dictionary, done: Callable) -> void:
+	SupabaseConfig.ensure_loaded()
+	var url := SupabaseConfig.url + table
+	var auth_token := SupabaseClient._auth_bearer()
+	var headers := PackedStringArray([
+		"apikey: " + SupabaseConfig.anon_key,
+		"Authorization: Bearer " + auth_token,
+		"Content-Type: application/json",
+		"Prefer: resolution=merge-duplicates, return=representation",
+	])
+	SupabaseClient._dispatch_http(
+		url,
+		headers,
+		HTTPClient.METHOD_POST,
+		JSON.stringify(row),
+		func(result: int, response_code: int, _headers_res: PackedStringArray, body: PackedByteArray) -> void:
+			var http_ok := result == HTTPRequest.RESULT_SUCCESS and response_code >= 200 and response_code < 300
+			if not http_ok:
+				_log_http_failure("%s MERGE" % table, response_code, body)
+			if done.is_valid():
+				done.call(http_ok, response_code)
+	)
+
+
+func _save_related_row(table: String, row: Dictionary, done: Callable) -> void:
+	var clean := _sanitize_related_row(row)
+	_merge_table_row(table, clean, func(merge_ok: bool, response_code: int) -> void:
+		if merge_ok:
+			if done.is_valid():
+				done.call(true)
+			return
+
+		var query := _related_row_query(table, clean)
+		_patch_table_row(table, query, clean, func(patch_ok: bool, rows_updated: int) -> void:
+			if patch_ok and rows_updated > 0:
+				if done.is_valid():
+					done.call(true)
+				return
+			_post_table_row(table, clean, func(post_ok: bool, post_code: int) -> void:
+				if post_ok:
+					if done.is_valid():
+						done.call(true)
+					return
+				if post_code == 409 or response_code == 409:
+					_patch_table_row(table, query, clean, func(retry_ok: bool, retry_rows: int) -> void:
+						if done.is_valid():
+							done.call((retry_ok and retry_rows > 0) or post_code == 409)
+					)
+					return
+				if done.is_valid():
+					done.call(false)
+			)
+		)
+	)
+
+
 func _wait_for_upserts(records: Array, table: String, done: Callable) -> void:
 	if records.is_empty():
 		_safe_done(done, true)
@@ -304,28 +467,7 @@ func _wait_for_upserts(records: Array, table: String, done: Callable) -> void:
 		if not record is Dictionary:
 			finish_one.call(false)
 			continue
-
-		var row: Dictionary = record
-		var url := SupabaseConfig.url + table
-		var auth_token := SupabaseClient._auth_bearer()
-		var headers := PackedStringArray([
-			"apikey: " + SupabaseConfig.anon_key,
-			"Authorization: Bearer " + auth_token,
-			"Content-Type: application/json",
-			"Prefer: resolution=merge-duplicates, return=minimal"
-		])
-		
-		SupabaseClient._dispatch_http(
-			url, 
-			headers, 
-			HTTPClient.METHOD_POST, 
-			JSON.stringify(row), 
-			func(result: int, response_code: int, _headers_res: PackedStringArray, _body: PackedByteArray) -> void:
-				var is_ok := result == HTTPRequest.RESULT_SUCCESS and response_code >= 200 and response_code < 300
-				if not is_ok and OS.is_debug_build():
-					push_warning("Upsert failed for %s: HTTP %d" % [table, response_code])
-				finish_one.call(is_ok)
-		)
+		_save_related_row(table, record, finish_one)
 
 func _apply_player_stats_from_row(p: Player, row: Dictionary) -> void:
 	p.stat_points = _db_int(row.get("stat_points", 0))

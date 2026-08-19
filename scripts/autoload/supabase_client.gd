@@ -23,6 +23,7 @@ var _pending_join_channels: Array[String] = []
 var _primary_channel: String = RealtimeChannel.GLOBAL
 var _web_fetch_seq: int = 0
 var _web_fetch_pending: Dictionary = {}
+var _web_http_pending: Dictionary = {}
 var _web_fetch_helper_ready: bool = false
 
 const WEB_FETCH_POLL_JS := (
@@ -35,21 +36,32 @@ const WEB_FETCH_POLL_JS := (
 # Fallback เมื่อ html/web_head_include.html ไม่ถูก export — ซิงก์กับไฟล์นั้น
 const WEB_FETCH_HELPER_JS := """
 window.__godot_fetch_results = window.__godot_fetch_results || [];
-window.__godotRestGet = function(url, apikey, authHeader, fetchId) {
-	fetch(url, {
-		method: 'GET',
-		headers: {
-			'apikey': apikey,
-			'Authorization': authHeader,
-			'Accept': 'application/json'
-		}
-	}).then(function(r) {
+window.__godotRestRequest = function(method, url, apikey, authHeader, body, preferHeader, fetchId) {
+	var headers = {
+		'apikey': apikey,
+		'Authorization': authHeader,
+		'Accept': 'application/json'
+	};
+	if (method !== 'GET' && method !== 'DELETE') {
+		headers['Content-Type'] = 'application/json';
+	}
+	if (preferHeader) {
+		headers['Prefer'] = preferHeader;
+	}
+	var opts = { method: method, headers: headers };
+	if (body && method !== 'GET' && method !== 'DELETE') {
+		opts.body = body;
+	}
+	fetch(url, opts).then(function(r) {
 		return r.text().then(function(t) {
 			window.__godot_fetch_results.push({ id: fetchId, status: r.status, body: t });
 		});
 	}).catch(function(e) {
 		window.__godot_fetch_results.push({ id: fetchId, status: 0, body: String(e) });
 	});
+};
+window.__godotRestGet = function(url, apikey, authHeader, fetchId) {
+	window.__godotRestRequest('GET', url, apikey, authHeader, '', '', fetchId);
 };
 """
 
@@ -201,7 +213,7 @@ func _process(delta: float) -> void:
 			if was_connected and current_user_id != "":
 				call_deferred("connect_realtime")
 
-	if OS.has_feature("web") and not _web_fetch_pending.is_empty():
+	if OS.has_feature("web") and (not _web_fetch_pending.is_empty() or not _web_http_pending.is_empty()):
 		_poll_web_fetch_results()
 
 
@@ -437,15 +449,105 @@ func _dispatch_http(
 	on_complete: Callable,
 	timeout_sec: float = DEFAULT_HTTP_TIMEOUT
 ) -> void:
+	if OS.has_feature("web"):
+		_dispatch_http_browser(url, headers, method, body, on_complete, timeout_sec)
+		return
+
 	var http := HTTPRequest.new()
 	add_child(http)
 	_connect_http_callback(http, on_complete, timeout_sec)
+	headers = _headers_without_encoding(headers)
 	var err := http.request(url, headers, method, body)
 	if err != OK:
 		push_warning("Supabase HTTP request failed to start (%s): %s" % [url, error_string(err)])
 		http.queue_free()
 		if on_complete.is_valid():
 			on_complete.call(HTTPRequest.RESULT_CANT_CONNECT, 0, PackedStringArray(), PackedByteArray())
+
+
+func _headers_without_encoding(headers: PackedStringArray) -> PackedStringArray:
+	var out := PackedStringArray()
+	var has_accept_encoding := false
+	for header_line in headers:
+		var line := str(header_line)
+		if line.to_lower().begins_with("accept-encoding:"):
+			has_accept_encoding = true
+		out.append(line)
+	if not has_accept_encoding:
+		out.append("Accept-Encoding: identity")
+	return out
+
+
+func _http_method_name(method: HTTPClient.Method) -> String:
+	match method:
+		HTTPClient.METHOD_POST:
+			return "POST"
+		HTTPClient.METHOD_PUT:
+			return "PUT"
+		HTTPClient.METHOD_PATCH:
+			return "PATCH"
+		HTTPClient.METHOD_DELETE:
+			return "DELETE"
+		_:
+			return "GET"
+
+
+func _extract_header_value(headers: PackedStringArray, header_name: String) -> String:
+	var prefix := header_name.to_lower() + ": "
+	for header_line in headers:
+		var line := str(header_line)
+		if line.to_lower().begins_with(prefix):
+			return line.substr(prefix.length()).strip_edges()
+	return ""
+
+
+func _dispatch_http_browser(
+	url: String,
+	headers: PackedStringArray,
+	method: HTTPClient.Method,
+	body: String,
+	on_complete: Callable,
+	timeout_sec: float
+) -> void:
+	_ensure_web_fetch_helper()
+
+	_web_fetch_seq += 1
+	var fetch_id: int = _web_fetch_seq
+	_web_http_pending[fetch_id] = on_complete
+
+	if OS.is_debug_build():
+		print("[BrowserFetch] HTTP ", _http_method_name(method), " id=", fetch_id)
+
+	var auth_token := _extract_header_value(headers, "Authorization")
+	if auth_token.is_empty():
+		auth_token = "Bearer " + _auth_bearer()
+	var prefer_header := _extract_header_value(headers, "Prefer")
+	var apikey := _extract_header_value(headers, "apikey")
+	if apikey.is_empty():
+		apikey = SupabaseConfig.anon_key
+
+	var window_obj: JavaScriptObject = JavaScriptBridge.get_interface("window")
+	window_obj.call(
+		"__godotRestRequest",
+		_http_method_name(method),
+		url,
+		apikey,
+		auth_token,
+		body,
+		prefer_header,
+		fetch_id
+	)
+
+	get_tree().create_timer(timeout_sec).timeout.connect(func() -> void:
+		if not _web_http_pending.has(fetch_id):
+			return
+		if OS.is_debug_build():
+			push_warning("[BrowserFetch] HTTP timeout id=%d" % fetch_id)
+		var pending: Callable = _web_http_pending[fetch_id]
+		_web_http_pending.erase(fetch_id)
+		if pending.is_valid():
+			pending.call(HTTPRequest.RESULT_TIMEOUT, 0, PackedStringArray(), PackedByteArray())
+	, CONNECT_ONE_SHOT)
 
 
 func _http_succeeded(result: int, response_code: int) -> bool:
@@ -587,7 +689,7 @@ func _ensure_web_fetch_helper() -> void:
 
 
 func _poll_web_fetch_results() -> void:
-	while not _web_fetch_pending.is_empty():
+	while true:
 		var raw_json: String = str(JavaScriptBridge.eval(WEB_FETCH_POLL_JS, true))
 		if raw_json.is_empty() or raw_json == "null":
 			break
@@ -603,17 +705,29 @@ func _poll_web_fetch_results() -> void:
 			continue
 
 		var fetch_id: int = int(item.get("id", -1))
+		var status: int = int(item.get("status", 0))
+		var body_text := str(item.get("body", ""))
+
+		if _web_http_pending.has(fetch_id):
+			var http_cb: Callable = _web_http_pending[fetch_id]
+			_web_http_pending.erase(fetch_id)
+			var result := HTTPRequest.RESULT_SUCCESS if status > 0 else HTTPRequest.RESULT_CANT_CONNECT
+			if OS.is_debug_build():
+				print("[BrowserFetch] HTTP done status=", status, " id=", fetch_id)
+			if http_cb.is_valid():
+				http_cb.call(result, status, PackedStringArray(), body_text.to_utf8_buffer())
+			continue
+
 		if not _web_fetch_pending.has(fetch_id):
 			continue
 
 		var pending: Callable = _web_fetch_pending[fetch_id]
 		_web_fetch_pending.erase(fetch_id)
 
-		var status: int = int(item.get("status", 0))
-		var rows: Array = _rows_from_json_text(str(item.get("body", "")))
+		var rows: Array = _rows_from_json_text(body_text)
 		var ok: bool = status >= 200 and status < 300
 		if OS.is_debug_build():
-			print("[BrowserFetch] status=", status, " rows=", rows.size(), " id=", fetch_id)
+			print("[BrowserFetch] GET status=", status, " rows=", rows.size(), " id=", fetch_id)
 		if pending.is_valid():
 			pending.call(ok, rows)
 

@@ -1,19 +1,30 @@
 <script>
 window.__godot_fetch_results = window.__godot_fetch_results || [];
-window.__godotRestGet = function(url, apikey, authHeader, fetchId) {
-	fetch(url, {
-		method: 'GET',
-		headers: {
-			'apikey': apikey,
-			'Authorization': authHeader,
-			'Accept': 'application/json'
-		}
-	}).then(function(r) {
+window.__godotRestRequest = function(method, url, apikey, authHeader, body, preferHeader, fetchId) {
+	var headers = {
+		'apikey': apikey,
+		'Authorization': authHeader,
+		'Accept': 'application/json'
+	};
+	if (method !== 'GET' && method !== 'DELETE') {
+		headers['Content-Type'] = 'application/json';
+	}
+	if (preferHeader) {
+		headers['Prefer'] = preferHeader;
+	}
+	var opts = { method: method, headers: headers };
+	if (body && method !== 'GET' && method !== 'DELETE') {
+		opts.body = body;
+	}
+	fetch(url, opts).then(function(r) {
 		return r.text().then(function(t) {
 			window.__godot_fetch_results.push({ id: fetchId, status: r.status, body: t });
 		});
 	}).catch(function(e) {
 		window.__godot_fetch_results.push({ id: fetchId, status: 0, body: String(e) });
 	});
+};
+window.__godotRestGet = function(url, apikey, authHeader, fetchId) {
+	window.__godotRestRequest('GET', url, apikey, authHeader, '', '', fetchId);
 };
 </script>
